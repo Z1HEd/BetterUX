@@ -22,4 +22,9 @@
   <ItemGroup>
     <None Include="info.json5" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BetterUI.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
