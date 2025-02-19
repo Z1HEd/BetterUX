@@ -3,8 +3,6 @@
 #include <4dm.h>
 #include <auilib/auilib.h>
 
-#include <algorithm>
-
 using namespace fdm;
 
 // Initialize the DLLMain
@@ -217,7 +215,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	audioContainer.clear();
 	otherContainer.clear();
 
-	categoryContainer.ySpacing = 50;
+	categoryContainer.ySpacing = 43;
 	categoryContainer.xSpacing = 50;
 
 	modLoaderOptionsContainer.ySpacing=20;
@@ -257,13 +255,15 @@ $hook(void, StateSettings, render, StateManager& s)
 
 	self->mainContentBox.clear();
 	self->mainContentBox.addElement(&categoryContainer);
+	self->mainContentBox.addElement(&self->secretButton); // Fiiiine you may live
 
+	categoryContainer.addElement(&modLoaderOptionsContainer);
 	categoryContainer.addElement(&graphicsContainer);
 	categoryContainer.addElement(&audioContainer);
 	categoryContainer.addElement(&gameplayContainer);
 	categoryContainer.addElement(&controlsContainer);
 	categoryContainer.addElement(&multiplayerContainer);
-	categoryContainer.addElement(&modLoaderOptionsContainer);
+	
 	categoryContainer.addElement(&otherContainer);
 
 	initializedSettings = true;
@@ -271,11 +271,10 @@ $hook(void, StateSettings, render, StateManager& s)
 }
 
 //render distance is the only lowercase setting
-$hook(void, StateSettings, renderDistanceSliderCallback, void* user, int value)
+$hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int value)
 {
-	original(self, user, value);
-	// for some reason self does not work, and actual render distance is in "user", not "value"
-	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", (int)user+1));
+	original(user, value);
+	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
 }
 
 

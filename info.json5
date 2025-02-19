@@ -1,14 +1,13 @@
 {
-  id: "ZiHEd.betterui",
+  id: "zihed.betterui",
   name: "BetterUI",
   author: "ZiHEd",
   description: "Mod that improves certain interface elements.",
-  version: "1.0",
+  version: "1.1",
   gameVersion: "0.2.1.4",
   modDLL: "4DMod.dll",
   externalDLLs: [
   ],
   dependencies: {
-     "tr1ngledev.4dkeybinds": "? before" // "?" is an optional dependency, "before" makes the dependency load before this mod, "> 1.0" dependency with version bigger than 1.0
   },
 }
