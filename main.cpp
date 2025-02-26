@@ -1,7 +1,9 @@
-//#define DEBUG_CONSOLE // Uncomment this if you want a debug console to start. You can use the Console class to print. You can use Console::inStrings to get input.
+#define DEBUG_CONSOLE // Uncomment this if you want a debug console to start. You can use the Console class to print. You can use Console::inStrings to get input.
 
 #include <4dm.h>
+#include <glm/gtc/random.hpp>
 #include <auilib/auilib.h>
+#include "4DKeyBinds.h"
 
 using namespace fdm;
 
@@ -24,6 +26,10 @@ gui::Text controlsText;
 gui::Text graphicsText;
 gui::Text gameplayText;
 
+QuadRenderer qr{};
+FontRenderer font{};
+gui::Interface ui;
+gui::Text healthText;
 
 $hook(void, StateIntro, init, StateManager& s)
 {
@@ -34,7 +40,6 @@ $hook(void, StateIntro, init, StateManager& s)
 	glewInit();
 	glfwInit();
 }
-
 
 $hook(void, StateSettings, init, StateManager& s)
 {
@@ -205,7 +210,6 @@ $hook(void, StateSettings, render, StateManager& s)
 	
 	categoryContainer.clear();
 	categoryContainer.maxColumns = 2;
-	
 
 	modLoaderOptionsContainer.clear();
 	controlsContainer.clear();
@@ -270,6 +274,102 @@ $hook(void, StateSettings, render, StateManager& s)
 
 }
 
+void viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scroll)
+{
+	GLFWwindow* window = (GLFWwindow*)user;
+
+	// update the render viewport
+	int wWidth, wHeight;
+	glfwGetWindowSize(window, &wWidth, &wHeight);
+	glViewport(pos.x, wHeight - pos.y - pos.w, pos.z, pos.w);
+
+	// create a 2D projection matrix from the specified dimensions and scroll position
+	glm::mat4 projection2D = glm::ortho(0.0f, (float)pos.z, (float)pos.w, 0.0f, -1.0f, 1.0f);
+	projection2D = glm::translate(projection2D, { scroll.x, scroll.y, 0 });
+
+	// update all 2D shaders
+	const Shader* textShader = ShaderManager::get("textShader");
+	textShader->use();
+	glUniformMatrix4fv(glGetUniformLocation(textShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
+
+	const Shader* tex2DShader = ShaderManager::get("tex2DShader");
+	tex2DShader->use();
+	glUniformMatrix4fv(glGetUniformLocation(tex2DShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
+
+	const Shader* quadShader = ShaderManager::get("quadShader");
+	quadShader->use();
+	glUniformMatrix4fv(glGetUniformLocation(quadShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
+}
+//Initialize stuff when entering world
+$hook(void, StateGame, init, StateManager& s)
+{
+	original(self, s);
+
+	font = { ResourceManager::get("pixelFont.png"), ShaderManager::get("textShader") };
+
+
+	qr.shader = ShaderManager::get("quadShader");
+	qr.init();
+
+	ui = gui::Interface{ s.window };
+	ui.viewportCallback = viewportCallback;
+	ui.viewportUser = s.window;
+	ui.font = &font;
+	ui.qr = &qr;
+
+	healthText.text = "100";
+	healthText.alignX(gui::ALIGN_LEFT);
+	healthText.alignY(gui::ALIGN_BOTTOM);
+	healthText.size = 2;
+	healthText.shadow = true;
+	healthText.offsetY(-26);
+	ui.addElement(&healthText);
+}
+
+//Render UI
+$hook(void, Player, renderHud, GLFWwindow* window) {
+	original(self, window);
+
+	static float timeSinceDamage;
+	
+	timeSinceDamage = glfwGetTime() - self->damageTime;
+
+	
+	static glm::vec4 textColor;
+	if (self->health > 70) textColor = { .5,1,.5,1 }; //light green if high health
+	else if (self->health > 30) textColor = { 1,0.64f,0,1 }; // orange if half health
+	else textColor = { 1,0.1f,0.1f,1 }; // red if low health
+
+	healthText.text = std::to_string((int)self->health);
+
+	int width, height;
+	healthText.getSize(&ui, &width, &height);
+
+	glDisable(GL_DEPTH_TEST);
+	if (timeSinceDamage < Player::DAMAGE_COOLDOWN) {
+
+		glm::vec2 aOffset = glm::diskRand(5.f);
+		glm::vec2 bOffset = glm::diskRand(5.f);
+
+		healthText.color = { 1,0,1,1 };
+		healthText.offsetX(42 - width / 2 + aOffset.x);
+		healthText.offsetY(-26 + aOffset.y);
+		healthText.render(&ui);
+
+		healthText.color = { 1,0,1,1 };
+		healthText.offsetX(42 - width / 2 + aOffset.x);
+		healthText.offsetY(-26 + aOffset.y);
+		healthText.render(&ui);
+
+		healthText.offsetY(-26);
+	}
+	healthText.color = textColor;
+	healthText.offsetX(42- width/2);
+	healthText.render(&ui);
+
+	glEnable(GL_DEPTH_TEST);
+}
+
 //render distance is the only lowercase setting
 $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int value)
 {
@@ -277,5 +377,134 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
 }
 
+int getItemCategory(Item* item) {
+	if (item==nullptr) return 2;
+	if (0 == strcmp(typeid(*item).name(), "class ItemTool")) return -1;
+	else if (0 == strcmp(typeid(*item).name(), "class ItemMaterial")) return 0;
+	else if (0 == strcmp(typeid(*item).name(), "class ItemBlock")) return 1;
+	
+	return 0; Console::printLine("UNKNOWN CATEGORY"); // should not be the case
+}
+
+void swapIndex(InventoryManager * manager,Inventory * inventory, int a, int b) {
+	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
+	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(b), manager->cursor.item, inventory);
+	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
+}
+
+int swapPredicateSimple(Item* a, Item* b) {
+	if (a != nullptr && b != nullptr) {
+		return std::strcmp(a->getName().c_str(), b->getName().c_str());
+	}
+	else if (b != nullptr) return 1;
+	else return -1;
+}
+
+int swapPredicateCategorical(Item* a, Item* b) {
+	int aCat = getItemCategory(a);
+	int bCat = getItemCategory(b);
+	if (aCat != bCat) {
+		if (bCat > aCat) return -1;
+		else if (bCat < aCat) return 1;
+		else return 0;
+	}
+	else {
+		return swapPredicateSimple(a, b);
+	}
+}
+
+void bubbleSort(InventoryManager* manager, Inventory* inventory, int(*predicate)(Item*, Item*)) {
+	int n = inventory->getSlotCount();
+	for (int i = 0; i < n - 1; i++) {
+		for (int j = 0; j < n -i- 1; j++) {
+			if (predicate(inventory->getSlot(j)->get(), inventory->getSlot(j + 1)->get())==1)
+				swapIndex(manager, inventory, j, j + 1);
+		}
+	}
+}
+
+void ChatGPTSort(InventoryManager* manager, Inventory* inventory) {
+	constexpr int ROWS = 8;
+	constexpr int COLUMNS = 4;
+	constexpr int TOTAL_SLOTS = ROWS * COLUMNS;
+
+	// Step 1: Extract all items with their current positions
+	std::vector<std::pair<Item*, int>> items;
+
+	for (int i = 0; i < TOTAL_SLOTS; ++i) {
+		Item* item = inventory->getSlot(i)->get();
+		if (item) {
+			items.emplace_back(item, i);
+		}
+	}
+
+	// Step 2: Sort items first by category, then by name
+	auto getCategory = [](Item* item) -> int {
+		int category = getItemCategory(item);
+		if (category == -1) return 0; // Tools in column 0
+		if (category == 0) return 1;  // Materials in columns 1 & 2
+		if (category == 1) return 2;  // Blocks in column 3
+		return 3;                     // Unknown items last
+		};
+
+	std::sort(items.begin(), items.end(), [&](const auto& a, const auto& b) {
+		int catA = getCategory(a.first);
+		int catB = getCategory(b.first);
+		if (catA != catB) return catA < catB; // Sort by category first
+		return a.first->getName() < b.first->getName(); // Then by name
+		});
+
+	// Step 3: Assign sorted items to new positions dynamically
+	std::vector<int> columnCounts(COLUMNS, 0);
+	std::vector<int> targetPositions(TOTAL_SLOTS, -1);
+
+	for (auto& [item, originalIndex] : items) {
+		int category = getCategory(item);
+		int targetColumn = (category == 0) ? 0 : (category == 1) ? 1 : 3;
+
+		// Handle column overflow by shifting to another column from the end
+		while (columnCounts[targetColumn] >= ROWS) {
+			targetColumn = (targetColumn == 3) ? 2 : targetColumn - 1;
+		}
+
+		int newIndex = columnCounts[targetColumn] + (targetColumn * ROWS);
+		columnCounts[targetColumn]++;
+		targetPositions[originalIndex] = newIndex;
+	}
+
+	// Step 4: Swap items dynamically, tracking real-time positions
+	std::vector<int> indexToSlot(TOTAL_SLOTS);
+	for (int i = 0; i < TOTAL_SLOTS; i++) {
+		indexToSlot[i] = i; // Initial mapping
+	}
+
+	for (int i = 0; i < TOTAL_SLOTS; i++) {
+		if (targetPositions[i] != -1 && targetPositions[i] != i) {
+			int currentIndex = indexToSlot[i]; // Get real current position
+			int newIndex = targetPositions[i];
+
+			if (currentIndex != newIndex) {
+				swapIndex(manager, inventory, currentIndex, newIndex);
+
+				// Swap tracking indexes
+				std::swap(indexToSlot[i], indexToSlot[newIndex]);
+			}
+		}
+	}
+}
+
+void sortInventory(GLFWwindow* window, int action, int mods) {
+	if (action != 1) return;
+	
+	InventoryManager* manager = &StateGame::instanceObj->player.inventoryManager;
+	if (!manager->isOpen()) return;
+	Inventory* inventory = manager->secondary;
+	ChatGPTSort(manager, inventory);
+}
+
+$exec
+{
+	KeyBinds::addBind("BetterUI", "Sort inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
+}
 
 extern "C" _declspec(dllexport) aui::VBoxContainer* getCategoryContainer() { return &categoryContainer; }
