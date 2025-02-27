@@ -14,7 +14,7 @@ void InventorySorter::combineItem(InventoryManager* manager, Inventory* inventor
 	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(fromIndex), manager->cursor.item, manager->secondary);
 }
 
-int InventorySorter::getItemCategory(Item* item) { //Leetcode ahh algorythm
+int InventorySorter::getItemCategory(Item* item) { 
     if (item == nullptr) return 2;
 
     //I will define the reality myself
@@ -35,7 +35,7 @@ int InventorySorter::getMaxCount(Item* item) {
 
 bool InventorySorter::compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j) { return std::strcmp(i.itemName.c_str(), j.itemName.c_str()) == 1; }
 
-std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInventoryMap(InventoryGrid* inventory) {
+std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInventoryMap(InventoryGrid* inventory) { //Leetcode ahh algorythm
     static int transferCount = 0;
     
     int columns = 4;

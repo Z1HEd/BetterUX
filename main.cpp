@@ -31,6 +31,7 @@ QuadRenderer qr{};
 FontRenderer font{};
 gui::Interface ui;
 gui::Text healthText;
+gui::TextInput craftSearchInput;
 
 $hook(void, StateIntro, init, StateManager& s)
 {
@@ -301,6 +302,7 @@ void viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scrol
 	quadShader->use();
 	glUniformMatrix4fv(glGetUniformLocation(quadShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
 }
+
 //Initialize stuff when entering world
 $hook(void, StateGame, init, StateManager& s)
 {
@@ -324,13 +326,31 @@ $hook(void, StateGame, init, StateManager& s)
 	healthText.size = 2;
 	healthText.shadow = true;
 	healthText.offsetY(-26);
-	ui.addElement(&healthText);
+	
+	craftSearchInput.height = 30;
+	craftSearchInput.width = 300;
+	craftSearchInput.alignX(gui::ALIGN_RIGHT);
+	craftSearchInput.alignY(gui::ALIGN_TOP);
+	int x, y;
+	self->player.inventoryManager.craftingMenuBox.getPos(&ui, &x, &y);
+	craftSearchInput.offsetY(y - craftSearchInput.height);
+	//craftSearchInput.active = true;
+	craftSearchInput.editable = true;
+
+	//ui.addElement(&healthText);
+	ui.addElement(&craftSearchInput);
+	//self->player.inventoryManager.craftingMenuBox.addElement(&craftSearchInput);
+
+	gui::Text* craftingText = &self->player.inventoryManager.craftingText;
+
+	craftingText->offsetY(20);
 }
 
 //Render UI
 $hook(void, Player, renderHud, GLFWwindow* window) {
 	original(self, window);
 
+	// Hp indicator
 	static float timeSinceDamage;
 	
 	timeSinceDamage = glfwGetTime() - self->damageTime;
@@ -368,7 +388,77 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 	healthText.offsetX(42- width/2);
 	healthText.render(&ui);
 
+	if (self->inventoryManager.isOpen())
+		ui.render();
+
 	glEnable(GL_DEPTH_TEST);
+
+	CraftingMenu* menu = &self->inventoryManager.craftingMenu;
+	gui::ContentBox* craftingMenuBox = &self->inventoryManager.craftingMenuBox;
+	int x, y;
+	for (int i = 0; i < craftingMenuBox->elements.size();i++) {
+		craftingMenuBox->elements[i]->getPos(craftingMenuBox->parent, &x, &y);
+	}
+}
+
+//This is DEFINETELY not the way it is supposed to be done
+uint32_t convertKeyToCodepoint(int key, char mods) {
+	if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
+		return (mods & GLFW_MOD_SHIFT) ? key : (key + 32); // Convert to lowercase if shift is not pressed
+	}
+
+	if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
+		return key;
+	}
+
+	if (key == GLFW_KEY_BACKSPACE) {
+		return 8;
+	}
+
+	if (key == GLFW_KEY_SPACE) {
+		return 32;
+	}
+
+	return 0; // Return 0 if the key is not a valid character
+}
+// :skull:
+$hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, char mods) {
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+		if (craftSearchInput.active) {
+			if (key == GLFW_KEY_BACKSPACE) {
+				if (!craftSearchInput.text.empty()) {
+					auto oldText = craftSearchInput.text.c_str();
+					size_t length = std::strlen(oldText); // Determine length
+					if (length > 0) {
+						craftSearchInput.text = fdm::stl::basic_string<char>(oldText, length - 1); // Create new string without last char
+					}
+					craftSearchInput.cursorPos--;
+				}
+				return true; // Consume event
+			}
+
+			uint32_t codepoint = convertKeyToCodepoint(key, mods);
+			return craftSearchInput.charInput(&ui, codepoint);
+		}
+	}
+
+	return original(self, window, world, key, scancode, action, mods);
+}
+
+$hook(void, Player, mouseButtonInput, GLFWwindow* window,World* world, int button, int action, int mods) {
+	original(self, window, world, button, action, mods);
+
+	if (!self->inventoryManager.isOpen()) return;
+	craftSearchInput.mouseButtonInput(&ui,button, action, mods);
+	
+}
+
+$hook(void, Player, mouseInput, GLFWwindow* window,World* world, double xpos, double ypos) {
+	original(self, window,world, xpos, ypos);
+
+	if (!self->inventoryManager.isOpen()) return;
+	craftSearchInput.mouseInput(&ui, xpos,ypos);
+
 }
 
 //render distance is the only lowercase setting
@@ -377,8 +467,6 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 	original(user, value);
 	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
 }
-
-
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
 	if (action != 1) return;
