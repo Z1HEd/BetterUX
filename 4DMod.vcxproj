@@ -99,6 +99,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InventorySorter.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -106,6 +107,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BetterUI.h" />
+    <ClInclude Include="InventorySorter.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

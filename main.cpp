@@ -4,6 +4,7 @@
 #include <glm/gtc/random.hpp>
 #include <auilib/auilib.h>
 #include "4DKeyBinds.h"
+#include "InventorySorter.h"
 
 using namespace fdm;
 
@@ -377,129 +378,14 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
 }
 
-int getItemCategory(Item* item) {
-	if (item==nullptr) return 2;
-	if (0 == strcmp(typeid(*item).name(), "class ItemTool")) return -1;
-	else if (0 == strcmp(typeid(*item).name(), "class ItemMaterial")) return 0;
-	else if (0 == strcmp(typeid(*item).name(), "class ItemBlock")) return 1;
-	
-	return 0; Console::printLine("UNKNOWN CATEGORY"); // should not be the case
-}
 
-void swapIndex(InventoryManager * manager,Inventory * inventory, int a, int b) {
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(b), manager->cursor.item, inventory);
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
-}
-
-int swapPredicateSimple(Item* a, Item* b) {
-	if (a != nullptr && b != nullptr) {
-		return std::strcmp(a->getName().c_str(), b->getName().c_str());
-	}
-	else if (b != nullptr) return 1;
-	else return -1;
-}
-
-int swapPredicateCategorical(Item* a, Item* b) {
-	int aCat = getItemCategory(a);
-	int bCat = getItemCategory(b);
-	if (aCat != bCat) {
-		if (bCat > aCat) return -1;
-		else if (bCat < aCat) return 1;
-		else return 0;
-	}
-	else {
-		return swapPredicateSimple(a, b);
-	}
-}
-
-void bubbleSort(InventoryManager* manager, Inventory* inventory, int(*predicate)(Item*, Item*)) {
-	int n = inventory->getSlotCount();
-	for (int i = 0; i < n - 1; i++) {
-		for (int j = 0; j < n -i- 1; j++) {
-			if (predicate(inventory->getSlot(j)->get(), inventory->getSlot(j + 1)->get())==1)
-				swapIndex(manager, inventory, j, j + 1);
-		}
-	}
-}
-
-void ChatGPTSort(InventoryManager* manager, Inventory* inventory) {
-	constexpr int ROWS = 8;
-	constexpr int COLUMNS = 4;
-	constexpr int TOTAL_SLOTS = ROWS * COLUMNS;
-
-	// Step 1: Extract all items with their current positions
-	std::vector<std::pair<Item*, int>> items;
-
-	for (int i = 0; i < TOTAL_SLOTS; ++i) {
-		Item* item = inventory->getSlot(i)->get();
-		if (item) {
-			items.emplace_back(item, i);
-		}
-	}
-
-	// Step 2: Sort items first by category, then by name
-	auto getCategory = [](Item* item) -> int {
-		int category = getItemCategory(item);
-		if (category == -1) return 0; // Tools in column 0
-		if (category == 0) return 1;  // Materials in columns 1 & 2
-		if (category == 1) return 2;  // Blocks in column 3
-		return 3;                     // Unknown items last
-		};
-
-	std::sort(items.begin(), items.end(), [&](const auto& a, const auto& b) {
-		int catA = getCategory(a.first);
-		int catB = getCategory(b.first);
-		if (catA != catB) return catA < catB; // Sort by category first
-		return a.first->getName() < b.first->getName(); // Then by name
-		});
-
-	// Step 3: Assign sorted items to new positions dynamically
-	std::vector<int> columnCounts(COLUMNS, 0);
-	std::vector<int> targetPositions(TOTAL_SLOTS, -1);
-
-	for (auto& [item, originalIndex] : items) {
-		int category = getCategory(item);
-		int targetColumn = (category == 0) ? 0 : (category == 1) ? 1 : 3;
-
-		// Handle column overflow by shifting to another column from the end
-		while (columnCounts[targetColumn] >= ROWS) {
-			targetColumn = (targetColumn == 3) ? 2 : targetColumn - 1;
-		}
-
-		int newIndex = columnCounts[targetColumn] + (targetColumn * ROWS);
-		columnCounts[targetColumn]++;
-		targetPositions[originalIndex] = newIndex;
-	}
-
-	// Step 4: Swap items dynamically, tracking real-time positions
-	std::vector<int> indexToSlot(TOTAL_SLOTS);
-	for (int i = 0; i < TOTAL_SLOTS; i++) {
-		indexToSlot[i] = i; // Initial mapping
-	}
-
-	for (int i = 0; i < TOTAL_SLOTS; i++) {
-		if (targetPositions[i] != -1 && targetPositions[i] != i) {
-			int currentIndex = indexToSlot[i]; // Get real current position
-			int newIndex = targetPositions[i];
-
-			if (currentIndex != newIndex) {
-				swapIndex(manager, inventory, currentIndex, newIndex);
-
-				// Swap tracking indexes
-				std::swap(indexToSlot[i], indexToSlot[newIndex]);
-			}
-		}
-	}
-}
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
 	if (action != 1) return;
 	
 	InventoryManager* manager = &StateGame::instanceObj->player.inventoryManager;
 	if (!manager->isOpen()) return;
-	Inventory* inventory = manager->secondary;
-	ChatGPTSort(manager, inventory);
+	InventorySorter::Sort(manager,(InventoryGrid*)manager->secondary);
 }
 
 $exec
