@@ -401,7 +401,28 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 	}
 }
 
-//This is DEFINETELY not the way it is supposed to be done
+void updateFilteredCrafts(Player* player) {
+	player->inventoryManager.craftingMenu.updateAvailableRecipes(); // Reload all craftable recipes
+	/*
+	for (size_t i = 0; i < recipes.size(); ++i) {
+		if (recipes[i].result.get()->getName().find(craftSearchInput.text) != std::string::npos) {
+			std::erase(recipes.begin() + i);
+		}
+	} */
+	std::vector<CraftingMenu::CraftableRecipe>& recipes = player->inventoryManager.craftingMenu.craftableRecipes;
+	size_t newSize = 0;
+	for (size_t i = 0; i < recipes.size(); ++i) {
+		if (recipes[i].result.get()->getName().find(craftSearchInput.text) != std::string::npos) {
+			if (i != newSize) {
+				recipes[i].swap( recipes[newSize]);
+			}
+			++newSize;
+		}
+	}
+	recipes.resize(newSize);
+}
+
+// Reinventing a wheel here
 uint32_t convertKeyToCodepoint(int key, char mods) {
 	if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
 		return (mods & GLFW_MOD_SHIFT) ? key : (key + 32); // Convert to lowercase if shift is not pressed
@@ -421,7 +442,8 @@ uint32_t convertKeyToCodepoint(int key, char mods) {
 
 	return 0; // Return 0 if the key is not a valid character
 }
-// :skull:
+
+//This is DEFINETELY not the way it is supposed to be done
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, char mods) {
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		if (craftSearchInput.active) {
@@ -434,11 +456,14 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 					}
 					craftSearchInput.cursorPos--;
 				}
-				return true; // Consume event
+				updateFilteredCrafts(self);
+				return true;
 			}
 
 			uint32_t codepoint = convertKeyToCodepoint(key, mods);
-			return craftSearchInput.charInput(&ui, codepoint);
+			bool result=craftSearchInput.charInput(&ui, codepoint);
+			updateFilteredCrafts(self);
+			return result;
 		}
 	}
 
@@ -461,7 +486,7 @@ $hook(void, Player, mouseInput, GLFWwindow* window,World* world, double xpos, do
 
 }
 
-//render distance is the only lowercase setting
+// "render distance" is the only lowercase setting ._.
 $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int value)
 {
 	original(user, value);
