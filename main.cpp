@@ -310,11 +310,10 @@ $hook(void, StateGame, init, StateManager& s)
 
 	font = { ResourceManager::get("pixelFont.png"), ShaderManager::get("textShader") };
 
-
 	qr.shader = ShaderManager::get("quadShader");
 	qr.init();
 
-	ui = gui::Interface{ s.window };
+	ui.window = s.window;
 	ui.viewportCallback = viewportCallback;
 	ui.viewportUser = s.window;
 	ui.font = &font;
@@ -401,89 +400,59 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 	}
 }
 
-void updateFilteredCrafts(Player* player) {
-	player->inventoryManager.craftingMenu.updateAvailableRecipes(); // Reload all craftable recipes
-	/*
-	for (size_t i = 0; i < recipes.size(); ++i) {
-		if (recipes[i].result.get()->getName().find(craftSearchInput.text) != std::string::npos) {
-			std::erase(recipes.begin() + i);
+$hook(void, CraftingMenu, updateAvailableRecipes)
+{
+	original(self);
+	for (auto it = self->craftableRecipes.begin(); it < self->craftableRecipes.end(); )
+	{
+		stl::string lowerItem = it->result->getName();
+		std::transform(lowerItem.begin(), lowerItem.end(), lowerItem.begin(),
+			[](uint8_t c) { return std::tolower(c); });
+
+		stl::string lowerInput = craftSearchInput.text;
+		std::transform(lowerInput.begin(), lowerInput.end(), lowerInput.begin(),
+			[](uint8_t c) { return std::tolower(c); });
+
+		if (lowerItem.find(lowerInput) == std::string::npos)
+		{
+			it = self->craftableRecipes.erase(it);
+			continue;
 		}
-	} */
-	std::vector<CraftingMenu::CraftableRecipe>& recipes = player->inventoryManager.craftingMenu.craftableRecipes;
-	size_t newSize = 0;
-	for (size_t i = 0; i < recipes.size(); ++i) {
-		if (recipes[i].result.get()->getName().find(craftSearchInput.text) != std::string::npos) {
-			if (i != newSize) {
-				recipes[i].swap( recipes[newSize]);
-			}
-			++newSize;
-		}
+		it++;
 	}
-	recipes.resize(newSize);
+	self->Interface->updateCraftingMenuBox();
 }
 
-// Reinventing a wheel here
-uint32_t convertKeyToCodepoint(int key, char mods) {
-	if (key >= GLFW_KEY_A && key <= GLFW_KEY_Z) {
-		return (mods & GLFW_MOD_SHIFT) ? key : (key + 32); // Convert to lowercase if shift is not pressed
-	}
-
-	if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9) {
-		return key;
-	}
-
-	if (key == GLFW_KEY_BACKSPACE) {
-		return 8;
-	}
-
-	if (key == GLFW_KEY_SPACE) {
-		return 32;
-	}
-
-	return 0; // Return 0 if the key is not a valid character
+$hook(void, StateGame, charInput, StateManager& s, uint32_t codepoint)
+{
+	if (!self->player.inventoryManager.isOpen() || !ui.charInput(codepoint))
+		return original(self, s, codepoint);
+	self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
-
-//This is DEFINETELY not the way it is supposed to be done
-$hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, char mods) {
-	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
-		if (craftSearchInput.active) {
-			if (key == GLFW_KEY_BACKSPACE) {
-				if (!craftSearchInput.text.empty()) {
-					auto oldText = craftSearchInput.text.c_str();
-					size_t length = std::strlen(oldText); // Determine length
-					if (length > 0) {
-						craftSearchInput.text = fdm::stl::basic_string<char>(oldText, length - 1); // Create new string without last char
-					}
-					craftSearchInput.cursorPos--;
-				}
-				updateFilteredCrafts(self);
-				return true;
-			}
-
-			uint32_t codepoint = convertKeyToCodepoint(key, mods);
-			bool result=craftSearchInput.charInput(&ui, codepoint);
-			updateFilteredCrafts(self);
-			return result;
-		}
-	}
-
-	return original(self, window, world, key, scancode, action, mods);
+$hook(void, StateGame, keyInput, StateManager& s, int key, int scancode, int action, int mods)
+{
+	if (!self->player.inventoryManager.isOpen() || !craftSearchInput.active || key == GLFW_KEY_ESCAPE)
+		return original(self, s, key, scancode, action, mods);
+	if (ui.keyInput(key, scancode, action, mods))
+		self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
-
-$hook(void, Player, mouseButtonInput, GLFWwindow* window,World* world, int button, int action, int mods) {
-	original(self, window, world, button, action, mods);
-
-	if (!self->inventoryManager.isOpen()) return;
-	craftSearchInput.mouseButtonInput(&ui,button, action, mods);
-	
+$hook(void, StateGame, mouseInput, StateManager& s, double xpos, double ypos)
+{
+	original(self, s, xpos, ypos);
+	if (!self->player.inventoryManager.isOpen()) return;
+	ui.mouseInput(xpos, ypos);
 }
-
-$hook(void, Player, mouseInput, GLFWwindow* window,World* world, double xpos, double ypos) {
-	original(self, window,world, xpos, ypos);
-
-	if (!self->inventoryManager.isOpen()) return;
-	craftSearchInput.mouseInput(&ui, xpos,ypos);
-
+$hook(void, StateGame, mouseButtonInput, StateManager& s, int button, int action, int mods)
+{
+	if (!self->player.inventoryManager.isOpen() || !ui.mouseButtonInput(button, action, mods))
+		original(self, s, button, action, mods);
+	//updateFilteredCrafts(&self->player);
+}
+$hook(void, StateGame, scrollInput, StateManager& s, double xoffset, double yoffset)
+{
+	original(self, s, xoffset, yoffset);
+	if (!self->player.inventoryManager.isOpen()) return;
+	ui.scrollInput(xoffset, yoffset);
 }
 
 // "render distance" is the only lowercase setting ._.
