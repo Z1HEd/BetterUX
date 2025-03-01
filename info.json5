@@ -9,6 +9,6 @@
   externalDLLs: [
   ],
   dependencies: {
-  "tr1ngledev.4dkeybinds": "? before >=1.1"
+  "tr1ngledev.4dkeybinds": "? before >= 1.1"
   },
 }
