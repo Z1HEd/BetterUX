@@ -425,7 +425,7 @@ $hook(void, CraftingMenu, updateAvailableRecipes)
 
 $hook(void, StateGame, charInput, StateManager& s, uint32_t codepoint)
 {
-	if (!self->player.inventoryManager.isOpen() || !ui.charInput(codepoint))
+	if (!self->player.inventoryManager.isOpen() || !craftSearchInput.active || !ui.charInput(codepoint))
 		return original(self, s, codepoint);
 	self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
