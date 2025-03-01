@@ -429,8 +429,26 @@ $hook(void, StateGame, charInput, StateManager& s, uint32_t codepoint)
 		return original(self, s, codepoint);
 	self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
+bool shiftHeldDown = false;
+bool ctrlHeldDown = false;
 $hook(void, StateGame, keyInput, StateManager& s, int key, int scancode, int action, int mods)
 {
+	// used for multicrafting
+	if (action != GLFW_REPEAT)
+	{
+		switch (key)
+		{
+		case GLFW_KEY_LEFT_SHIFT:
+		{
+			shiftHeldDown = action == GLFW_PRESS;
+		} break;
+		case GLFW_KEY_LEFT_CONTROL:
+		{
+			ctrlHeldDown = action == GLFW_PRESS;
+		} break;
+		}
+	}
+
 	if (!self->player.inventoryManager.isOpen() || !craftSearchInput.active || key == GLFW_KEY_ESCAPE)
 		return original(self, s, key, scancode, action, mods);
 	if (ui.keyInput(key, scancode, action, mods))
@@ -463,16 +481,56 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 }
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
-	if (action != 1) return;
+	if (action != GLFW_PRESS) return;
 	
 	InventoryManager* manager = &StateGame::instanceObj->player.inventoryManager;
 	if (!manager->isOpen()) return;
-	InventorySorter::Sort(manager,(InventoryGrid*)manager->secondary);
+	InventorySorter::sort(manager,(InventoryGrid*)manager->secondary);
+}
+
+$hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
+{
+	if (!KeyBinds::isLoaded())
+	{
+		if (key == GLFW_KEY_R)
+			sortInventory(window, action, mods);
+	}
+
+	return original(self, window, world, key, scancode, action, mods);
+}
+
+inline static bool(__thiscall* craftRecipe_o)(CraftingMenu* self, int recipeIndex) = nullptr;
+inline static bool __fastcall craftRecipe_h(CraftingMenu* self, int recipeIndex)
+{
+	if (craftRecipe_o(self, recipeIndex))
+	{
+		if (shiftHeldDown)
+		{
+			if (ctrlHeldDown)
+			{
+				for (int i = 0; i < 50 - 1; i++)
+					craftRecipe_o(self, recipeIndex);
+				return true;
+			}
+			while (craftRecipe_o(self, recipeIndex));
+			return true;
+		}
+		if (ctrlHeldDown)
+		{
+			for (int i = 0; i < 10 - 1; i++)
+				craftRecipe_o(self, recipeIndex);
+			return true;
+		}
+	}
+	return false;
 }
 
 $exec
 {
 	KeyBinds::addBind("BetterUI", "Sort inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
+
+	Hook(fdm::base + 0x5C120, craftRecipe_h, &craftRecipe_o);
+	EnableHook(reinterpret_cast<LPVOID>(fdm::base + 0x5C120));
 }
 
 extern "C" _declspec(dllexport) aui::VBoxContainer* getCategoryContainer() { return &categoryContainer; }

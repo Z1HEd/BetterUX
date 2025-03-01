@@ -3,12 +3,12 @@
   name: "BetterUI",
   author: "ZiHEd",
   description: "Mod that improves certain interface elements.",
-  version: "1.1",
+  version: "1.2",
   gameVersion: "0.2.1.4",
   modDLL: "4DMod.dll",
   externalDLLs: [
   ],
   dependencies: {
-  "tr1ngledev.4dkeybinds":"before"
+  "tr1ngledev.4dkeybinds": "? before >=1.1"
   },
 }

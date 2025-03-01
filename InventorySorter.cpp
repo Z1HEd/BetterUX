@@ -134,7 +134,7 @@ std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInve
 }
 
 
-void InventorySorter::Sort(InventoryManager* manager, InventoryGrid* inventory) {
+void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) {
     int columns = 4;
     int rows = 8;
     int totalSlots = rows * columns; // Hardcoded because InventoryGrid::size contains bullshit values
