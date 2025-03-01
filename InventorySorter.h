@@ -21,5 +21,5 @@ private:
 	static bool compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j);
 
 public:
-	static void Sort(InventoryManager* manager, InventoryGrid* inventory);
+	static void sort(InventoryManager* manager, InventoryGrid* inventory);
 };

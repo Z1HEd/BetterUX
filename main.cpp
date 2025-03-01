@@ -310,11 +310,10 @@ $hook(void, StateGame, init, StateManager& s)
 
 	font = { ResourceManager::get("pixelFont.png"), ShaderManager::get("textShader") };
 
-
 	qr.shader = ShaderManager::get("quadShader");
 	qr.init();
 
-	ui.window=s.window ;
+	ui.window = s.window;
 	ui.viewportCallback = viewportCallback;
 	ui.viewportUser = s.window;
 	ui.font = &font;
@@ -400,30 +399,60 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 		craftingMenuBox->elements[i]->getPos(craftingMenuBox->parent, &x, &y);
 	}
 }
-void updateFilteredCrafts(Player* player) {
-	CraftingMenu& menu = player->inventoryManager.craftingMenu;
-	menu.updateAvailableRecipes();
-	for (auto it = menu.craftableRecipes.begin(); it < menu.craftableRecipes.end(); )
+
+$hook(void, CraftingMenu, updateAvailableRecipes)
+{
+	original(self);
+	for (auto it = self->craftableRecipes.begin(); it < self->craftableRecipes.end(); )
 	{
-		if (it->result->getName().find(craftSearchInput.text) == std::string::npos)
+		stl::string lowerItem = it->result->getName();
+		std::transform(lowerItem.begin(), lowerItem.end(), lowerItem.begin(),
+			[](uint8_t c) { return std::tolower(c); });
+
+		stl::string lowerInput = craftSearchInput.text;
+		std::transform(lowerInput.begin(), lowerInput.end(), lowerInput.begin(),
+			[](uint8_t c) { return std::tolower(c); });
+
+		if (lowerItem.find(lowerInput) == std::string::npos)
 		{
-			it = menu.craftableRecipes.erase(it);
+			it = self->craftableRecipes.erase(it);
 			continue;
 		}
 		it++;
 	}
+	self->Interface->updateCraftingMenuBox();
 }
+
 $hook(void, StateGame, charInput, StateManager& s, uint32_t codepoint)
 {
-	original(self, s, codepoint);
-	if (!self->player.inventoryManager.isOpen()) return;
-	ui.charInput(codepoint);
+	if (!self->player.inventoryManager.isOpen() || !ui.charInput(codepoint))
+		return original(self, s, codepoint);
+	self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
+bool shiftHeldDown = false;
+bool ctrlHeldDown = false;
 $hook(void, StateGame, keyInput, StateManager& s, int key, int scancode, int action, int mods)
 {
-	original(self, s, key, scancode, action, mods);
-	if (!self->player.inventoryManager.isOpen()) return;
-	ui.keyInput(key, scancode, action, mods);
+	// used for multicrafting
+	if (action != GLFW_REPEAT)
+	{
+		switch (key)
+		{
+		case GLFW_KEY_LEFT_SHIFT:
+		{
+			shiftHeldDown = action == GLFW_PRESS;
+		} break;
+		case GLFW_KEY_LEFT_CONTROL:
+		{
+			ctrlHeldDown = action == GLFW_PRESS;
+		} break;
+		}
+	}
+
+	if (!self->player.inventoryManager.isOpen() || !craftSearchInput.active || key == GLFW_KEY_ESCAPE)
+		return original(self, s, key, scancode, action, mods);
+	if (ui.keyInput(key, scancode, action, mods))
+		self->player.inventoryManager.craftingMenu.updateAvailableRecipes();
 }
 $hook(void, StateGame, mouseInput, StateManager& s, double xpos, double ypos)
 {
@@ -433,9 +462,9 @@ $hook(void, StateGame, mouseInput, StateManager& s, double xpos, double ypos)
 }
 $hook(void, StateGame, mouseButtonInput, StateManager& s, int button, int action, int mods)
 {
-	original(self, s, button, action, mods);
-	if (!self->player.inventoryManager.isOpen()) return;
-	ui.mouseButtonInput(button, action, mods);
+	if (!self->player.inventoryManager.isOpen() || !ui.mouseButtonInput(button, action, mods))
+		original(self, s, button, action, mods);
+	//updateFilteredCrafts(&self->player);
 }
 $hook(void, StateGame, scrollInput, StateManager& s, double xoffset, double yoffset)
 {
@@ -452,16 +481,56 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 }
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
-	if (action != 1) return;
+	if (action != GLFW_PRESS) return;
 	
 	InventoryManager* manager = &StateGame::instanceObj->player.inventoryManager;
 	if (!manager->isOpen()) return;
-	InventorySorter::Sort(manager,(InventoryGrid*)manager->secondary);
+	InventorySorter::sort(manager,(InventoryGrid*)manager->secondary);
+}
+
+$hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
+{
+	if (!KeyBinds::isLoaded())
+	{
+		if (key == GLFW_KEY_R)
+			sortInventory(window, action, mods);
+	}
+
+	return original(self, window, world, key, scancode, action, mods);
+}
+
+inline static bool(__thiscall* craftRecipe_o)(CraftingMenu* self, int recipeIndex) = nullptr;
+inline static bool __fastcall craftRecipe_h(CraftingMenu* self, int recipeIndex)
+{
+	if (craftRecipe_o(self, recipeIndex))
+	{
+		if (shiftHeldDown)
+		{
+			if (ctrlHeldDown)
+			{
+				for (int i = 0; i < 50 - 1; i++)
+					craftRecipe_o(self, recipeIndex);
+				return true;
+			}
+			while (craftRecipe_o(self, recipeIndex));
+			return true;
+		}
+		if (ctrlHeldDown)
+		{
+			for (int i = 0; i < 10 - 1; i++)
+				craftRecipe_o(self, recipeIndex);
+			return true;
+		}
+	}
+	return false;
 }
 
 $exec
 {
 	KeyBinds::addBind("BetterUI", "Sort inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
+
+	Hook(fdm::base + 0x5C120, craftRecipe_h, &craftRecipe_o);
+	EnableHook(reinterpret_cast<LPVOID>(fdm::base + 0x5C120));
 }
 
 extern "C" _declspec(dllexport) aui::VBoxContainer* getCategoryContainer() { return &categoryContainer; }
