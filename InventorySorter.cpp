@@ -1,17 +1,50 @@
 #include "InventorySorter.h"
 
+void InventorySorter::synchronizedCursorTransfer(InventoryManager* manager, Inventory* inventory, int a) {
+    const nlohmann::json action = {
+            {"action","transfer"},
+            {"cursorContents",manager->cursor.item != nullptr ? manager->cursor.item->save().dump() : ""},
+            {"inventory",manager->secondary->name},
+            {"other",manager->primary->name},
+            {"slotContents", inventory->getSlot(a) != nullptr ? inventory->getSlot(a)->save().dump() : ""},
+            {"slotIndex",a},
+            {"transferAction",InventoryManager::ACTION_SWAP}
+    };
+    if (manager->callback) 
+        manager->callback(action, manager->user);
+
+    manager->applyAction(StateGame::instanceObj.world.get(), &StateGame::instanceObj.player,action);
+
+}
+
 void InventorySorter::swapIndex(InventoryManager* manager, Inventory* inventory, int a, int b) {
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(b), manager->cursor.item, inventory);
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(a), manager->cursor.item, inventory);
+    synchronizedCursorTransfer(manager, inventory, a);
+    synchronizedCursorTransfer(manager, inventory, b);
+    synchronizedCursorTransfer(manager, inventory, a);
 }
 
 void InventorySorter::combineItem(InventoryManager* manager, Inventory* inventory, int fromIndex) {
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(fromIndex), manager->cursor.item, manager->secondary);
-	manager->secondary->combineItem(manager->cursor.item);
-	if (!(manager->cursor.item))
-		return;
-	manager->applyTransfer(InventoryManager::ACTION_SWAP, *inventory->getSlot(fromIndex), manager->cursor.item, manager->secondary);
+    synchronizedCursorTransfer(manager, inventory, fromIndex);
+
+    for (int i = 0;i < inventory->getSlotCount();i++) {
+        if (inventory->getSlot(i) == nullptr || inventory->getSlot(i)->getName() != manager->cursor.item->getName()) continue;
+        if (manager->callback)
+            manager->callback({
+                {"action","transfer"},
+                {"cursorContents",manager->cursor.item != nullptr ? manager->cursor.item->save().dump() : ""},
+                {"inventory",manager->secondary->name},
+                {"other",manager->primary->name},
+                {"slotContents", inventory->getSlot(i) != nullptr ? inventory->getSlot(i)->save().dump() : ""},
+                {"slotIndex",i},
+                {"transferAction",InventoryManager::ACTION_GIVE_MAX}
+                },
+                manager->user);
+        manager->applyTransfer(InventoryManager::ACTION_GIVE_MAX, inventory->getSlot(i), manager->cursor.item, manager->secondary);
+        if (!manager->cursor.item) return;
+    }
+
+    synchronizedCursorTransfer(manager, inventory, fromIndex);
+
 }
 
 int InventorySorter::getItemCategory(Item* item) { 
@@ -26,11 +59,7 @@ int InventorySorter::getItemCategory(Item* item) {
     if (0 == strcmp(typeid(*item).name(), "class ItemMaterial")) return 1;
     if (0 == strcmp(typeid(*item).name(), "class ItemBlock")) return 2;
 
-    return 0; Console::printLine("UNKNOWN CATEGORY"); // should not be the case
-}
-
-int InventorySorter::getMaxCount(Item* item) {
-    return item->getStackLimit();
+    return 0; // should not be the case
 }
 
 bool InventorySorter::compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j) { return std::strcmp(i.itemName.c_str(), j.itemName.c_str()) == 1; }
@@ -38,9 +67,9 @@ bool InventorySorter::compareNames(InventorySorter::SortedItemInfo& i, Inventory
 std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInventoryMap(InventoryGrid* inventory) { //Leetcode ahh algorythm
     static int transferCount = 0;
     
-    int columns = 4;
-    int rows = 8;
-    int totalSlots = rows*columns; // Hardcoded because InventoryGrid::size contains bullshit values
+    int columns = inventory->size.x;
+    int rows = inventory->size.y;
+    int totalSlots = inventory->getSlotCount();
 
 
     std::vector<SortedItemInfo> inventoryMap(totalSlots);
@@ -51,13 +80,13 @@ std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInve
 
     // Extract items into separate categories
     for (int i = 0; i < totalSlots; ++i) {
-        Item* item = inventory->getSlot(i)->get();
+        Item* item = inventory->getSlot(i).get();
         if (!item) continue;
 
         SortedItemInfo info;
         info.itemName = item->getName();
         info.currentStackCount = item->count;
-        info.maxStackCount = getMaxCount(item);
+        info.maxStackCount = item->getStackLimit();
 
         //Push each item into respective category, combining stacks
         int category = getItemCategory(item);
@@ -135,27 +164,27 @@ std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInve
 
 
 void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) {
-    int columns = 4;
-    int rows = 8;
-    int totalSlots = rows * columns; // Hardcoded because InventoryGrid::size contains bullshit values
+    int columns = inventory->size.x;
+    int rows = inventory->size.y;
+    int totalSlots = inventory->getSlotCount();
 
     auto sortedInventoryMap = generateSortedInventoryMap(inventory);
 
     for (int i = 0; i < totalSlots; ++i) { // For each item in the inventory
-        Item* item = inventory->getSlot(i)->get();
-
-        while (item != nullptr && item->getName() != sortedInventoryMap[i].itemName) {
+        auto* item = &inventory->getSlot(i);
+        
+        while ((*item) && (*item)->getName() != sortedInventoryMap[i].itemName) {
             InventorySorter::combineItem(manager, inventory, i); //Try to combine with the others
-            if (item == nullptr || item->count<1) break; // If combined with no remainder, continue
+            if (!(*item)  || (*item)->count<1) break; // If combined with no remainder, continue
 
             int j = 0; // Find first index of that item in supposed arrangement
             for (;j < sortedInventoryMap.size();j++) {
-                Item* itemI = inventory->getSlot(j)->get();
+                auto& itemI = inventory->getSlot(j); 
                 if (itemI != nullptr && sortedInventoryMap[j].itemName == itemI->getName()) continue;
-                if (sortedInventoryMap[j].itemName == item->getName()) break;
+                if (sortedInventoryMap[j].itemName == (*item)->getName()) break;
             }
             InventorySorter::swapIndex(manager, inventory,i,j); // Swap it with whatever was on that index
-            item = inventory->getSlot(i)->get(); // if something was on that index, will have to sort it in its place before proceeding
+            item = &inventory->getSlot(i); // if something was on that index, will have to sort it in its place before proceeding
         }
     }
 }

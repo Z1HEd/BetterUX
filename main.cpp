@@ -2,15 +2,20 @@
 
 #include <4dm.h>
 #include <glm/gtc/random.hpp>
-#include <auilib/auilib.h>
+#include "auilib/auilib.h"
 #include "4DKeyBinds.h"
 #include "InventorySorter.h"
+#include "StateWorldSettings.h"
+#include <fstream>
+
+#include "utils.h"
 
 using namespace fdm;
 
 // Initialize the DLLMain
 initDLL
 
+constexpr int entitySpawnDistance = 12;
 static bool initializedSettings = false;
 
 aui::VBoxContainer categoryContainer;
@@ -21,11 +26,16 @@ aui::VBoxContainer graphicsContainer;
 aui::VBoxContainer gameplayContainer;
 aui::VBoxContainer multiplayerContainer;
 aui::VBoxContainer audioContainer;
+aui::VBoxContainer betterUXContainer;
 aui::VBoxContainer otherContainer;
 
 gui::Text controlsText;
 gui::Text graphicsText;
 gui::Text gameplayText;
+
+gui::Text betterUXText;
+gui::Slider zoomingValueSlider{};
+gui::CheckBox enableZoomingCheckBox{};
 
 QuadRenderer qr{};
 FontRenderer font{};
@@ -33,21 +43,32 @@ gui::Interface ui;
 gui::Text healthText;
 gui::TextInput craftSearchInput;
 
-$hook(void, StateIntro, init, StateManager& s)
-{
-	original(self, s);
+StateManager* stateManager = nullptr;
 
-	// initialize opengl stuff
-	glewExperimental = true;
-	glewInit();
-	glfwInit();
+std::string configPath;
+
+// enables conventional zooming on button
+static bool isZoomingEnabled = true;
+
+// if true locks conventional zooming and assumes other mod is setting currentZoom
+// will zoom even if isZoomingEnabled is false
+static bool isZoomingLocked = false;
+
+static float currentZoom = 1;
+static float zoomedValue = 0.3f;
+
+void updateConfig(const std::string& path, const nlohmann::json& j)
+{
+	std::ofstream configFileO(path);
+	if (configFileO.is_open())
+	{
+		configFileO << j.dump(4);
+		configFileO.close();
+	}
 }
 
-$hook(void, StateSettings, init, StateManager& s)
-{
-	initializedSettings = false;
-	original(self, s);
-}
+
+static std::vector<aui::ImgButton> worldSettingsButtons = {};
 
 inline static gui::Text* getTextElement(gui::Element* element) {
 	if (0 == strcmp(typeid(*element).name(), "class gui::Text"))
@@ -117,7 +138,7 @@ inline static std::string getText(gui::Element* element)
 	return "Unknown element";
 }
 
-bool compareY(gui::Element*  a, gui::Element*  b) {
+bool compareY(gui::Element* a, gui::Element* b) {
 	return getY(a) < getY(b);
 }
 
@@ -196,6 +217,55 @@ static void putIntoCategory(gui::Element* e) {
 	else otherContainer.addElement(e);
 }
 
+$hook(void, StateIntro, init, StateManager& s)
+{
+	original(self, s);
+
+	stateManager = &s;
+
+	// initialize opengl stuff
+	glewExperimental = true;
+	glewInit();
+	glfwInit();
+
+	configPath = std::format("{}/config.json", fdm::getModPath(fdm::modID));
+
+	nlohmann::json configJson
+	{
+		{ "ZoomMultiplier", zoomedValue  },
+		{ "EnableZooming", isZoomingEnabled }
+	};
+
+	if (!std::filesystem::exists(configPath))
+	{
+		updateConfig(configPath, configJson);
+	}
+	else
+	{
+		std::ifstream configFileI(configPath);
+		if (configFileI.is_open())
+		{
+			configJson = nlohmann::json::parse(configFileI);
+			configFileI.close();
+		}
+	}
+
+	if (!configJson.contains("ZoomMultiplier"))
+	{
+		configJson["ZoomMultiplier"] = zoomedValue;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("EnableZooming"))
+	{
+		configJson["EnableZooming"] = isZoomingEnabled;
+		updateConfig(configPath, configJson);
+	}
+
+	zoomedValue = configJson["ZoomMultiplier"];
+	isZoomingEnabled = configJson["EnableZooming"];
+
+}
+
 //Add custom settings 
 $hook(void, StateSettings, render, StateManager& s)
 {
@@ -203,13 +273,14 @@ $hook(void, StateSettings, render, StateManager& s)
 	if (initializedSettings)
 		return;
 
-	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", StateSettings::instanceObj->currentRenderDistance));
+	StateSettings::instanceObj.renderDistanceSlider.range = 31;
+	StateSettings::instanceObj.renderDistanceSlider.setText(std::format("Render Distance: {}", StateSettings::instanceObj.currentRenderDistance));
 
 	setTextHeaderStyle(&self->settingsTitleText, 1); // main title must be big
 	self->settingsTitleText.offsetY(32); // and centered
 
-	std::sort(self->mainContentBox.elements.begin(), self->mainContentBox.elements.end(),compareY);
-	
+	std::sort(self->mainContentBox.elements.begin(), self->mainContentBox.elements.end(), compareY);
+
 	categoryContainer.clear();
 	categoryContainer.maxColumns = 2;
 
@@ -219,32 +290,63 @@ $hook(void, StateSettings, render, StateManager& s)
 	gameplayContainer.clear();
 	multiplayerContainer.clear();
 	audioContainer.clear();
+	betterUXContainer.clear();
 	otherContainer.clear();
 
 	categoryContainer.ySpacing = 43;
 	categoryContainer.xSpacing = 50;
 
-	modLoaderOptionsContainer.ySpacing=20;
+	modLoaderOptionsContainer.ySpacing = 20;
 	controlsContainer.ySpacing = 20;
 	graphicsContainer.ySpacing = 20;
 	gameplayContainer.ySpacing = 20;
 	multiplayerContainer.ySpacing = 20;
 	audioContainer.ySpacing = 20;
+	betterUXContainer.ySpacing = 20;
 	otherContainer.ySpacing = 20;
 
 	setTextHeaderStyle(&controlsText, 2);
-	controlsText.setText("Controls:");
+	controlsText.setText("Controls");
 	controlsContainer.addElement(&controlsText);
 
-	
+
 	setTextHeaderStyle(&graphicsText, 2);
-	graphicsText.setText("Graphics:");
+	graphicsText.setText("Graphics");
 	graphicsContainer.addElement(&graphicsText);
 
-	
+
 	setTextHeaderStyle(&gameplayText, 2);
-	gameplayText.setText("Gameplay:");
+	gameplayText.setText("Gameplay");
 	gameplayContainer.addElement(&gameplayText);
+
+	setTextHeaderStyle(&betterUXText, 2);
+	betterUXText.setText("BetterUX");
+
+	enableZoomingCheckBox.alignX(gui::ALIGN_CENTER_X);
+	enableZoomingCheckBox.checked = isZoomingEnabled;
+	enableZoomingCheckBox.setText("Enable Zooming");
+	enableZoomingCheckBox.callback = [](void* user, bool value)
+		{
+			isZoomingEnabled = value;
+			updateConfig(configPath, { { "ZoomMultiplier", zoomedValue },{ "EnableZooming", isZoomingEnabled } });
+		};
+
+	zoomingValueSlider.alignX(gui::ALIGN_CENTER_X);
+	zoomingValueSlider.range = 17; // 0,1...19
+	zoomingValueSlider.value = (1.0f / zoomedValue-1.5f)*2;
+	zoomingValueSlider.setText(std::format("Zoom Multiplier: {:.2f}", ((float)zoomingValueSlider.value / 2 + 1.5f)));
+	zoomingValueSlider.width = 500;
+	zoomingValueSlider.user = &zoomingValueSlider;
+	zoomingValueSlider.callback = [](void* user, int value)
+		{
+			zoomedValue = 1.0f / ((float)value / 2 + 1.5f);
+			zoomingValueSlider.setText(std::format("Zoom Multiplier: {:.2f}", ((float)value/2+1.5f)));
+			updateConfig(configPath, { { "ZoomMultiplier", zoomedValue },{ "EnableZooming", isZoomingEnabled } });
+		};
+
+	betterUXContainer.addElement(&betterUXText);
+	betterUXContainer.addElement(&enableZoomingCheckBox);
+	betterUXContainer.addElement(&zoomingValueSlider);
 
 	for (auto& e : self->mainContentBox.elements)
 	{
@@ -255,7 +357,7 @@ $hook(void, StateSettings, render, StateManager& s)
 
 		if (auto* t = getTextElement(e)) setTextHeaderStyle(t, 2); // all titles must be bigger than rest of the text, but smaller than main title
 
-		
+
 		putIntoCategory(e);
 	}
 
@@ -269,12 +371,75 @@ $hook(void, StateSettings, render, StateManager& s)
 	categoryContainer.addElement(&gameplayContainer);
 	categoryContainer.addElement(&controlsContainer);
 	categoryContainer.addElement(&multiplayerContainer);
-	
+	categoryContainer.addElement(&betterUXContainer);
+
 	categoryContainer.addElement(&otherContainer);
 
 	initializedSettings = true;
 
 }
+
+$hook(void, StateSettings, init, StateManager& s)
+{
+	initializedSettings = false;
+	original(self, s);
+}
+
+// World settings buttons
+void worldSettingsButtonCallback(void* user)
+{
+	StateWorldSettings::instanceObj.worldFolder= *(std::string*)user;
+
+	StateWorldSettings::instanceObj.updateSelectedWorld();
+	stateManager->pushState(&StateWorldSettings::instanceObj);
+}
+
+$hook(void, StateSingleplayer, init,StateManager& s) {
+	original(self, s);
+
+	setTextHeaderStyle(&self->yourWorlds, 1); // main title must be big
+	self->yourWorlds.offsetY(32); // and centered
+
+}
+
+$hook(void, StateSingleplayer, updateWorldListContainer, int wWidth, int wHeight) {
+	original(self, wWidth, wHeight);
+	worldSettingsButtons.clear();
+	for (int i = 0;i < self->worldButtons.size();i++) {
+		self->worldButtons[i].width -= 80;
+		self->worldButtons[i].xOffset = -30;
+
+		aui::ImgButton& newButton = worldSettingsButtons.emplace_back(ResourceManager::get("assets/SettingsIcon.png", true), self->worldButtons[i].height, self->worldButtons[i].height, 0, 0);
+		newButton.offsetX(self->worldButtons[i].xOffset+ self->worldButtons[i].width + newButton.width + 15);
+		newButton.offsetY(self->worldButtons[i].yOffset);
+		newButton.user = &self->worldPaths[i];
+		newButton.callback = worldSettingsButtonCallback;
+	}
+	for (int i = 0;i < worldSettingsButtons.size();i++) {
+		self->worldListContainer.addElement(&worldSettingsButtons[i]);
+	}
+}
+
+$hook(void, StateSingleplayer, windowResize, StateManager& s, int width, int height) {
+	original(self, s, width, height);
+	for (int i = 0;i < self->worldButtons.size();i++) {
+		self->worldButtons[i].xOffset = -30;
+	}
+}
+
+$hook(void,StateSingleplayer, updateProjection, const glm::ivec2& size, const glm::ivec2& translate2D) {
+	original(self, size, translate2D);
+
+	// create a 2D projection matrix from the specified dimensions and scroll position
+	glm::mat4 projection2D = glm::ortho(0.0f, (float)size.x, (float)size.y, 0.0f, -1.0f, 1.0f);
+	projection2D = glm::translate(projection2D, { translate2D.x, translate2D.y, 0 });
+
+	const Shader* tex2DShader = ShaderManager::get("tex2DShader");
+	tex2DShader->use();
+	glUniformMatrix4fv(glGetUniformLocation(tex2DShader->id(), "P"), 1, 0, &projection2D[0][0]);
+}
+
+//Initialize stuff when entering world
 
 void viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scroll)
 {
@@ -303,7 +468,6 @@ void viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scrol
 	glUniformMatrix4fv(glGetUniformLocation(quadShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
 }
 
-//Initialize stuff when entering world
 $hook(void, StateGame, init, StateManager& s)
 {
 	original(self, s);
@@ -333,19 +497,24 @@ $hook(void, StateGame, init, StateManager& s)
 	int x, y;
 	self->player.inventoryManager.craftingMenuBox.getPos(&ui, &x, &y);
 	craftSearchInput.offsetY(y - craftSearchInput.height);
-	//craftSearchInput.active = true;
 	craftSearchInput.editable = true;
 
-	//ui.addElement(&healthText);
 	ui.addElement(&craftSearchInput);
-	//self->player.inventoryManager.craftingMenuBox.addElement(&craftSearchInput);
 
 	gui::Text* craftingText = &self->player.inventoryManager.craftingText;
 
 	craftingText->offsetY(20);
 }
 
+// Make auilib work lol
+
+$hook(void, StateGame, windowResize, StateManager& s, GLsizei width, GLsizei height) {
+	original(self, s, width, height);
+	viewportCallback(s.window, { 0,0, width, height }, { 0,0 });
+}
+
 //Render UI
+
 $hook(void, Player, renderHud, GLFWwindow* window) {
 	original(self, window);
 
@@ -399,6 +568,8 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 		craftingMenuBox->elements[i]->getPos(craftingMenuBox->parent, &x, &y);
 	}
 }
+
+//Recipe filtering
 
 $hook(void, CraftingMenu, updateAvailableRecipes)
 {
@@ -474,19 +645,87 @@ $hook(void, StateGame, scrollInput, StateManager& s, double xoffset, double yoff
 }
 
 // "render distance" is the only lowercase setting ._.
+
 $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int value)
 {
 	original(user, value);
-	StateSettings::instanceObj->renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
+	StateSettings::instanceObj.renderDistanceSlider.setText(std::format("Render Distance: {}", value+1));
 }
 
+// Fastcrafting
+
+constexpr int ctrlShiftCraftCount = 50;
+constexpr int ctrlCraftCount = 10;
+constexpr int shiftCraftCount = INT_MAX;
+
+$hook(bool, CraftingMenu, craftRecipe, int recipeIndex) {
+	if (!original(self, recipeIndex)) return false;
+
+	int fastcraftCount = 1;
+
+	if (shiftHeldDown && ctrlHeldDown)
+		fastcraftCount = ctrlShiftCraftCount;
+	else if (shiftHeldDown)
+		fastcraftCount = shiftCraftCount;
+	else if (ctrlHeldDown)
+		fastcraftCount = ctrlCraftCount;
+
+	for (int i = 0; i < fastcraftCount-1; i++) {
+		// put crafting here
+			
+	}
+	return true;
+}
+
+$hook(bool, InventoryManager, applyAction, World* world, Player* player, const nlohmann::json& action) {
+	Console::printLine(action.dump(4));
+	original(self, world, player, action);
+}
+
+// Inventory sorting
 void sortInventory(GLFWwindow* window, int action, int mods) {
 	if (action != GLFW_PRESS) return;
-	
-	InventoryManager* manager = &StateGame::instanceObj->player.inventoryManager;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
 	if (!manager->isOpen()) return;
-	InventorySorter::sort(manager,(InventoryGrid*)manager->secondary);
+	if (manager->secondary->name=="inventoryAndEquipment")
+		InventorySorter::sort(manager, (InventoryGrid*)((InventoryPlayer*)manager->secondary)->hotbar);
+	else
+		InventorySorter::sort(manager, (InventoryGrid*)manager->secondary);
 }
+
+// Zooming
+
+void setZooming(GLFWwindow* window, int action, int mods) {
+	if (isZoomingLocked || !isZoomingEnabled) return;
+	if (action == GLFW_PRESS) currentZoom = zoomedValue;
+	else if (action == GLFW_RELEASE) currentZoom = 1;
+}
+
+// Decrease sensitivity when zooming
+$hook(void, Player, mouseInput, GLFWwindow* window, World* world, double xpos, double ypos) {
+	if (isZoomingLocked || !isZoomingEnabled) return original(self, window, world, xpos, ypos);
+	original(self, window, world,self->mouseX+ (xpos- self->mouseX)* currentZoom, self->mouseY + (ypos - self->mouseY) * currentZoom);
+}
+// FOV changing
+$hook(void, StateGame, render, StateManager& s) {
+	static double lastTime = glfwGetTime() - 0.01;
+	double dt = glfwGetTime() - lastTime;
+	lastTime = glfwGetTime();
+	if (self->player.inventoryManager.isOpen() 
+		|| (!isZoomingEnabled && !isZoomingLocked)) return original(self, s);
+
+	if (std::abs(self->FOV - (StateSettings::instanceObj.currentFOV - 30)*currentZoom) > 0.01) {
+		self->FOV = utils::ilerp(self->FOV, (StateSettings::instanceObj.currentFOV + 30) * currentZoom, 0.38f, dt);
+		int width, height;
+		glfwGetWindowSize(s.window, &width, &height);
+		self->updateProjection(glm::max(width, 1), glm::max(height, 1));
+	}
+	original(self, s);
+}
+
+
+// Keybinds
 
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
@@ -494,43 +733,31 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 	{
 		if (key == GLFW_KEY_R)
 			sortInventory(window, action, mods);
+		if (key == GLFW_KEY_V && action == GLFW_PRESS)
+			setZooming(window, action, mods);
 	}
-
 	return original(self, window, world, key, scancode, action, mods);
 }
-
-inline static bool(__thiscall* craftRecipe_o)(CraftingMenu* self, int recipeIndex) = nullptr;
-inline static bool __fastcall craftRecipe_h(CraftingMenu* self, int recipeIndex)
-{
-	if (craftRecipe_o(self, recipeIndex))
-	{
-		if (shiftHeldDown)
-		{
-			if (ctrlHeldDown)
-			{
-				for (int i = 0; i < 50 - 1; i++)
-					craftRecipe_o(self, recipeIndex);
-				return true;
-			}
-			while (craftRecipe_o(self, recipeIndex));
-			return true;
-		}
-		if (ctrlHeldDown)
-		{
-			for (int i = 0; i < 10 - 1; i++)
-				craftRecipe_o(self, recipeIndex);
-			return true;
-		}
-	}
-	return false;
-}
-
 $exec
 {
-	KeyBinds::addBind("BetterUI", "Sort inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
-
-	Hook(fdm::base + 0x5C120, craftRecipe_h, &craftRecipe_o);
-	EnableHook(reinterpret_cast<LPVOID>(fdm::base + 0x5C120));
+	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
+	KeyBinds::addBind("BetterUX", "Zoom", glfw::Keys::V, KeyBindsScope::PLAYER, setZooming);
 }
 
+// Extern functions
+
 extern "C" _declspec(dllexport) aui::VBoxContainer* getCategoryContainer() { return &categoryContainer; }
+
+extern "C" _declspec(dllexport) bool lockZooming() { 
+	if (isZoomingLocked) 
+		return false; 
+	isZoomingLocked = true; 
+	return true;
+}
+
+extern "C" _declspec(dllexport) bool unlockZooming() {
+	if (!isZoomingLocked)
+		return true;
+	isZoomingLocked = false;
+	return false;
+}

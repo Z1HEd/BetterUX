@@ -6,7 +6,8 @@ using namespace fdm;
 
 class InventorySorter {
 private:
-	static void swapIndex(InventoryManager* manager, Inventory* inventory, int a, int b);
+	static void synchronizedCursorTransfer(InventoryManager* manager, Inventory* inventory, int a);
+	static void swapIndex(InventoryManager* manager, Inventory* inventory, int a,int b);
 	static void combineItem(InventoryManager* manager, Inventory* inventory, int fromIndex);
 
 	struct SortedItemInfo {
@@ -17,7 +18,6 @@ private:
 
 	static std::vector<InventorySorter::SortedItemInfo> generateSortedInventoryMap(InventoryGrid* inventory);
 	static int getItemCategory(Item* item);
-	static int getMaxCount(Item* item);
 	static bool compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j);
 
 public:
