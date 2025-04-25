@@ -440,6 +440,7 @@ $hook(void, StateSingleplayer, updateWorldListContainer, int wWidth, int wHeight
 	}
 	for (int i = 0;i < worldSettingsButtons.size();i++) {
 		self->worldListContainer.addElement(&worldSettingsButtons[i]);
+		worldSettingsButtons[i].deselect();
 	}
 }
 
@@ -676,9 +677,26 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 }
 
 // Fastcrafting
-
 $hook(bool, CraftingMenu, craftRecipe, int recipeIndex) {
+	if (StateGame::instanceObj.world->getType() != World::TYPE_SINGLEPLAYER) return original(self, recipeIndex);
+
 	if (!original(self, recipeIndex)) return false;
+	unsigned int fastcraftCount = 1;
+
+	if (shiftHeldDown && ctrlHeldDown)
+		fastcraftCount = ctrlShiftCraftCount;
+	else if (shiftHeldDown)
+		fastcraftCount = shiftCraftCount;
+	else if (ctrlHeldDown)
+		fastcraftCount = ctrlCraftCount;
+
+	for (unsigned int i = 0; i < fastcraftCount - 1; i++) {
+		if (!original(self, recipeIndex)) break;
+	}
+
+	return true;
+}
+$hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void* user) {
 
 	unsigned int fastcraftCount = 1;
 
@@ -689,16 +707,16 @@ $hook(bool, CraftingMenu, craftRecipe, int recipeIndex) {
 	else if (ctrlHeldDown)
 		fastcraftCount = ctrlCraftCount;
 
-	for (unsigned int i = 0; i < fastcraftCount-1; i++) {
-		// put crafting here
-		if (!original(self, recipeIndex)) break;
-	}
-	return true;
-}
+	auto dummyItem = Item::create(CraftingMenu::recipes[recipeIndex]["result"]["name"].get<std::string>(), 1);
+	
+	fastcraftCount = std::min(fastcraftCount, dummyItem->getStackLimit() /
+		CraftingMenu::recipes[recipeIndex]["result"]["count"]);
 
-$hook(bool, InventoryManager, applyAction, World* world, Player* player, const nlohmann::json& action) {
-	Console::printLine(action.dump(4));
-	original(self, world, player, action);
+	for (unsigned int i = 0; i < fastcraftCount-1; i++) {
+		original(recipeIndex, user);
+	}
+
+	return original(recipeIndex, user);
 }
 
 // Inventory sorting
