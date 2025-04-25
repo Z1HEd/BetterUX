@@ -15,7 +15,10 @@ using namespace fdm;
 // Initialize the DLLMain
 initDLL
 
-constexpr int entitySpawnDistance = 12;
+unsigned int ctrlShiftCraftCount = 50;
+unsigned int ctrlCraftCount = 10;
+unsigned int shiftCraftCount = -1;
+
 static bool initializedSettings = false;
 
 aui::VBoxContainer categoryContainer;
@@ -66,7 +69,6 @@ void updateConfig(const std::string& path, const nlohmann::json& j)
 		configFileO.close();
 	}
 }
-
 
 static std::vector<aui::ImgButton> worldSettingsButtons = {};
 
@@ -233,7 +235,10 @@ $hook(void, StateIntro, init, StateManager& s)
 	nlohmann::json configJson
 	{
 		{ "ZoomMultiplier", zoomedValue  },
-		{ "EnableZooming", isZoomingEnabled }
+		{ "EnableZooming", isZoomingEnabled },
+		{ "ShiftCraftCount", shiftCraftCount},
+		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
+		{ "CtrlCraftCount", ctrlCraftCount}
 	};
 
 	if (!std::filesystem::exists(configPath))
@@ -261,9 +266,27 @@ $hook(void, StateIntro, init, StateManager& s)
 		updateConfig(configPath, configJson);
 	}
 
+	if (!configJson.contains("ShiftCraftCount"))
+	{
+		configJson["ShiftCraftCount"] = shiftCraftCount;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("CtrlShiftCraftCount"))
+	{
+		configJson["CtrlShiftCraftCount"] = ctrlShiftCraftCount;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("CtrlCraftCount"))
+	{
+		configJson["CtrlCraftCount"] = ctrlCraftCount;
+		updateConfig(configPath, configJson);
+	}
+
 	zoomedValue = configJson["ZoomMultiplier"];
 	isZoomingEnabled = configJson["EnableZooming"];
-
+	shiftCraftCount = configJson["ShiftCraftCount"];
+	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
+	ctrlCraftCount = configJson["CtrlCraftCount"];
 }
 
 //Add custom settings 
@@ -654,14 +677,10 @@ $hookStatic(void, StateSettings, renderDistanceSliderCallback, void* user, int v
 
 // Fastcrafting
 
-constexpr int ctrlShiftCraftCount = 50;
-constexpr int ctrlCraftCount = 10;
-constexpr int shiftCraftCount = INT_MAX;
-
 $hook(bool, CraftingMenu, craftRecipe, int recipeIndex) {
 	if (!original(self, recipeIndex)) return false;
 
-	int fastcraftCount = 1;
+	unsigned int fastcraftCount = 1;
 
 	if (shiftHeldDown && ctrlHeldDown)
 		fastcraftCount = ctrlShiftCraftCount;
@@ -670,9 +689,9 @@ $hook(bool, CraftingMenu, craftRecipe, int recipeIndex) {
 	else if (ctrlHeldDown)
 		fastcraftCount = ctrlCraftCount;
 
-	for (int i = 0; i < fastcraftCount-1; i++) {
+	for (unsigned int i = 0; i < fastcraftCount-1; i++) {
 		// put crafting here
-			
+		if (!original(self, recipeIndex)) break;
 	}
 	return true;
 }
