@@ -20,6 +20,8 @@ void StateWorldSettings::updateProjection(const glm::ivec2& size)
 	const Shader* quadShader = ShaderManager::get("quadShader");
 	quadShader->use();
 	glUniformMatrix4fv(glGetUniformLocation(quadShader->id(), "P"), 1, GL_FALSE, &projection2D[0][0]);
+
+	copyingLogText.wrapWidth = size.x;
 }
 
 void StateWorldSettings::viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scroll)
@@ -66,7 +68,6 @@ void StateWorldSettings::updateSelectedWorld() {
 
 void StateWorldSettings::init(StateManager& s)
 {
-
 	int width, height;
 	glfwGetWindowSize(s.window, &width, &height);
 
@@ -83,7 +84,7 @@ void StateWorldSettings::init(StateManager& s)
 		mainTitle.alignY(ALIGN_TOP);
 		mainTitle.offsetY( 50);
 		mainTitle.size = 3;
-		mainTitle.shadow = 1;
+		mainTitle.shadow = true;
 
 		mainUI.window = s.window;
 		mainUI.viewportCallback = viewportCallback;
@@ -175,7 +176,7 @@ void StateWorldSettings::init(StateManager& s)
 		copyTitle.alignY(ALIGN_TOP);
 		copyTitle.offsetY(50);
 		copyTitle.size = 3;
-		copyTitle.shadow = 1;
+		copyTitle.shadow = true;
 
 		copyFolderTitle.setText("Copy Folder Name:");
 		copyFolderTitle.size = 2;
@@ -236,14 +237,26 @@ void StateWorldSettings::init(StateManager& s)
 		copyingUI.qr = &qr;
 		copyingUI.cursor = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
 
-		copyingTitle.setText("Copying");
+		copyingTitle.setText("Copying...");
 		copyingTitle.alignX(ALIGN_CENTER_X);
 		copyingTitle.alignY(ALIGN_TOP);
 		copyingTitle.offsetY(50);
 		copyingTitle.size = 3;
-		copyingTitle.shadow = 1;
-	}
+		copyingTitle.shadow = true;
 
+		copyingLogText.setText("");
+		copyingLogText.shadow = true;
+		copyingLogText.size = 1;
+		copyingLogText.alignX(ALIGN_LEFT);
+		copyingLogText.alignY(ALIGN_TOP);
+		copyingLogText.wrapWidth = width - 40;
+		copyingLogText.offsetX(20);
+		copyingLogText.offsetY(100);
+		copyingLogText.color.a = 0.7f;
+
+		copyingUI.addElement(&copyingLogText);
+		copyingUI.addElement(&copyingTitle);
+	}
 
 	// Delete UI
 	{
@@ -259,7 +272,7 @@ void StateWorldSettings::init(StateManager& s)
 		deleteTitle.alignY(ALIGN_TOP);
 		deleteTitle.offsetY(50);
 		deleteTitle.size = 3;
-		deleteTitle.shadow = 1;
+		deleteTitle.shadow = true;
 
 		deleteNameTitle.size = 2;
 		deleteNameTitle.shadow = true;
@@ -315,11 +328,50 @@ void StateWorldSettings::render(StateManager& s)
 	// render a background using the QuadRenderer
 	qr.setColor(0, 0, 0, 0.6f);
 	qr.setPos(0, 0, w, h);
-	qr.setQuadRendererMode(GL_TRIANGLES);
+	qr.setQuadRendererMode(QuadRenderer::MODE_FILL);
 	qr.render();
 
 	// render the ui
 	ui->render();
+
+	if (copying && copyFilesTotal > 0)
+	{
+		// bar fill
+		qr.setColor(
+			{
+				{ 0,1,1,1 },
+				{ 0,1,1,1 },
+				{ 1,0,1,1 },
+				{ 1,0,1,1 },
+			});
+		qr.setPos(20, h - 100 + 40, (w - 40) * ((float)(int)copyFilesCopied / (float)(int)copyFilesTotal), 30);
+		qr.setQuadRendererMode(QuadRenderer::MODE_FILL);
+		qr.render();
+
+		// bar outline
+		qr.setColor(1, 1, 1, 1);
+		qr.setPos(20, h - 100 + 40, w - 40, 30);
+		qr.setQuadRendererMode(QuadRenderer::MODE_LINES);
+		qr.render();
+
+		font.centered = true;
+		font.fontSize = 2;
+		font.pos = glm::ivec2{ w / 2, h - 100 + 40 + 15 };
+		font.setText(std::format("{}/{}", (int)copyFilesCopied, (int)copyFilesTotal));
+
+		// shadow
+		font.color = glm::vec4{ 0,0,0,0.7f };
+		font.pos += glm::ivec2{ 2, 2 };
+		font.updateModel();
+		font.render();
+
+		// text
+		font.color = glm::vec4{ 1 };
+		font.pos -= glm::ivec2{ 2, 2 };
+		font.updateModel();
+		font.render();
+	}
+
 	glEnable(GL_DEPTH_TEST);
 }
 
@@ -369,31 +421,89 @@ inline void StateWorldSettings::saveButtonCallback(void* user)
 
 inline void StateWorldSettings::copyConfirmButtonCallback(void* user)
 {
+	using std::filesystem::path;
 
 	StateManager* stateManager = (StateManager*)user;
-	StateWorldSettings* worldSettings = &StateWorldSettings::instanceObj;
+	StateWorldSettings& worldSettings = StateWorldSettings::instanceObj;
 
-	std::filesystem::copy(worldSettings->worldFolder, std::format("worlds/{}", worldSettings->copyFolderInput.text), std::filesystem::copy_options::recursive);
+	worldSettings.copyLog.clear();
 
-	std::ifstream infoFile(std::format("worlds/{}/info.json", worldSettings->copyFolderInput.text));
-	nlohmann::json infoJson = nlohmann::json::parse(infoFile);
-	infoFile.close();
+	worldSettings.copyFinished = false;
+	worldSettings.copying = true;
+	worldSettings.copyFilesTotal = 0;
+	worldSettings.copyFilesCopied = 0;
+	worldSettings.ui = &worldSettings.copyingUI;
 
-	infoJson["name"] = worldSettings->copyNameInput.text;
+	worldSettings.copyThread = std::thread([]() {
+		StateWorldSettings& worldSettings = StateWorldSettings::instanceObj;
 
-	std::ofstream configFileNew(std::format("worlds/{}/info.json", worldSettings->copyFolderInput.text));
-	if (configFileNew.is_open())
-	{
-		configFileNew << infoJson.dump();
-		configFileNew.close();
-	}
+		path newWorldPath = path("worlds") / worldSettings.copyFolderInput.text;
 
-	StateSingleplayer::instanceObj.worldListContainer.clear();
-	StateSingleplayer::instanceObj.init(*stateManager);
+		// count files
+		worldSettings.copyFilesTotal = 0;
+		for (auto& entry : std::filesystem::recursive_directory_iterator(worldSettings.worldFolder))
+		{
+			if (!entry.is_directory())
+				++worldSettings.copyFilesTotal;
+		}
+		// copy files
+		worldSettings.copyFilesCopied = 0;
+		for (auto& entry : std::filesystem::recursive_directory_iterator(worldSettings.worldFolder))
+		{
+			try
+			{
+				path relative = std::filesystem::relative(entry.path(), worldSettings.worldFolder);
+				//printf("entry: \"%s\": ", entry.path().string().c_str());
+				if (!entry.is_directory())
+				{
+					//printf("file\n");
+					if (!std::filesystem::exists(newWorldPath / relative.parent_path()))
+					{
+						//printf("creating missing dir \"%s\"\n", (newWorldPath / relative.parent_path()).string().c_str());
+						std::filesystem::create_directories(newWorldPath / relative.parent_path());
+					}
+					path newPath = newWorldPath / std::filesystem::relative(entry.path(), worldSettings.worldFolder);
+					std::filesystem::copy(
+						std::filesystem::absolute(entry.path()),
+						std::filesystem::absolute(newPath),
+						std::filesystem::copy_options::overwrite_existing);
+					{
+						std::lock_guard lock{ worldSettings.copyLogMutex };
+						worldSettings.copyLog.emplace_back(
+							std::format("{}\n",
+								std::filesystem::relative(newPath, "./worlds").string()));
+					}
+					++worldSettings.copyFilesCopied;
+				}
+			}
+			catch (const std::filesystem::filesystem_error& e)
+			{
+				std::lock_guard lock{ worldSettings.copyLogMutex };
+				std::string err = std::format("Failed to copy \"{}\": Exception: \"{}\"\n", entry.path().string(), e.what());
+				worldSettings.copyLog.emplace_back(err);
+				printf("%s", err.c_str());
+			}
+		}
 
-	worldSettings->ui = &worldSettings->mainUI;
+		std::ifstream infoFile(newWorldPath / "info.json");
+		if (infoFile.is_open())
+		{
+			nlohmann::json infoJson = nlohmann::json::parse(infoFile);
+			infoFile.close();
 
-	stateManager->popState();
+			infoJson["name"] = worldSettings.copyNameInput.text;
+
+			std::ofstream infoFileOut(newWorldPath / "info.json");
+			if (infoFileOut.is_open())
+			{
+				infoFileOut << infoJson.dump();
+				infoFileOut.close();
+			}
+		}
+
+		worldSettings.copyFinished = true;
+	});
+	worldSettings.copyThread.detach();
 }
 
 inline void StateWorldSettings::copyCancelButtonCallback(void* user)
@@ -425,49 +535,93 @@ inline void StateWorldSettings::deleteCancelButtonCallback(void* user)
 // Inputs and updates
 void StateWorldSettings::mouseInput(StateManager& s, double xPos, double yPos)
 {
-	ui->mouseInput(xPos, yPos);
+	if (!copying)
+		ui->mouseInput(xPos, yPos);
 }
 void StateWorldSettings::scrollInput(StateManager& s, double xOff, double yOff)
 {
-	ui->scrollInput(xOff, yOff);
+	if (!copying)
+		ui->scrollInput(xOff, yOff);
 }
 void StateWorldSettings::keyInput(StateManager& s, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		if (ui == &mainUI)
-			s.popState();
+	if (!copying)
+	{
+		if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+			if (ui == &mainUI)
+				s.popState();
+			else
+				ui = &mainUI;
 		else
-			ui = &mainUI;
-	else
-		ui->keyInput(key, scancode, action, mods);
+			ui->keyInput(key, scancode, action, mods);
 
-	copyConfirmButton.clickable = !std::filesystem::exists(std::format("worlds/{}", copyFolderInput.text));
-	copyConfirmButton.setText(copyConfirmButton.clickable ? "Copy" : "Exists!");
-	
-	deleteConfirmButton.clickable = deleteNameInput.text == worldName;
-	
-	saveButton.clickable = 
-		!std::filesystem::exists(std::format("worlds/{}", folderInput.text)) ||
-		worldFolder==std::format("worlds\\{}",folderInput.text);
+		copyConfirmButton.clickable = !std::filesystem::exists(std::format("worlds/{}", copyFolderInput.text));
+		copyConfirmButton.setText(copyConfirmButton.clickable ? "Copy" : "Exists!");
 
-	saveButton.setText(saveButton.clickable ? "Save" : "Exists!");
+		deleteConfirmButton.clickable = deleteNameInput.text == worldName;
+
+		saveButton.clickable =
+			!std::filesystem::exists(std::format("worlds/{}", folderInput.text)) ||
+			worldFolder == std::format("worlds\\{}", folderInput.text);
+
+		saveButton.setText(saveButton.clickable ? "Save" : "Exists!");
+	}
 
 }
 void StateWorldSettings::charInput(StateManager& s, uint32_t codepoint)
 {
-	ui->charInput(codepoint);
+	if (!copying)
+		ui->charInput(codepoint);
 }
 void StateWorldSettings::mouseButtonInput(StateManager& s, int btn, int action, int mods)
 {
-	ui->mouseButtonInput(btn, action, mods);
+	if (!copying)
+		ui->mouseButtonInput(btn, action, mods);
 }
 void StateWorldSettings::update(StateManager& s, double dt)
 {
 	StateTitleScreen::instanceObj.update(s, dt);
+
+	int w, h;
+	glfwGetWindowSize(s.window, &w, &h);
+
+	if (copying)
+	{
+		if (copyFinished)
+		{
+			copying = false;
+			copyFinished = false;
+
+			StateSingleplayer::instanceObj.worldListContainer.clear();
+			StateSingleplayer::instanceObj.init(s);
+
+			ui = &mainUI;
+
+			s.popState();
+		}
+		else
+		{
+			std::lock_guard lock{ copyLogMutex };
+
+			int fits = (h - 200) / 12;
+			printf("%i\n", fits);
+			while (copyLog.size() > fits)
+				copyLog.erase(copyLog.begin());
+			std::string fullLog = "";
+			for (auto& str : copyLog)
+			{
+				fullLog += str;
+			}
+			copyingLogText.setText(fullLog);
+		}
+	}
 }
 void StateWorldSettings::close(StateManager& s)
 {
 	mainUI.clear();
+	copyUI.clear();
+	copyingUI.clear();
+	deleteUI.clear();
 }
 void StateWorldSettings::windowResize(StateManager& s, int w, int h)
 {

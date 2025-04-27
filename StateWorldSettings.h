@@ -56,6 +56,7 @@ public:
 
 	gui::Interface copyingUI;
 	gui::Text copyingTitle;
+	gui::Text copyingLogText;
 
 	// ui - delete
 	gui::Interface deleteUI;
@@ -67,6 +68,15 @@ public:
 
 	gui::Button deleteConfirmButton;
 	gui::Button deleteCancelButton;
+
+	// multithreading - tr1ngle
+	std::thread copyThread;
+	std::vector<std::string> copyLog;
+	std::mutex copyLogMutex;
+	std::atomic<bool> copying = false;
+	std::atomic<bool> copyFinished = false;
+	std::atomic<int> copyFilesTotal = 0;
+	std::atomic<int> copyFilesCopied = 0;
 
 	StateWorldSettings() {}
 

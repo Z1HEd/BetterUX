@@ -127,7 +127,7 @@ void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) 
     for (int i = 0; i < totalSlots; ++i) { // For each item in the inventory
         auto* item = &inventory->getSlot(i);
         
-        while ((*item) && ((*item)->getName() != sortedInventoryMap[i].itemName || (*item)->count> sortedInventoryMap[i].currentStackCount)) {
+        while ((*item) && ((*item)->getName() != sortedInventoryMap[i].itemName || (*item)->count > sortedInventoryMap[i].currentStackCount)) {
             InventoryActions::combineItemIf(manager, inventory, i, 
                 [&sortedInventoryMap, i](const std::unique_ptr<Item>& item) 
                 {return sortedInventoryMap[i].currentStackCount != item->count;}); //Try to combine with the others
