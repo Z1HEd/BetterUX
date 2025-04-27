@@ -17,7 +17,7 @@ initDLL
 
 unsigned int ctrlShiftCraftCount = 50;
 unsigned int ctrlCraftCount = 10;
-unsigned int shiftCraftCount = -1;
+unsigned int shiftCraftCount = 4096;
 
 static bool initializedSettings = false;
 
@@ -45,6 +45,8 @@ FontRenderer font{};
 gui::Interface ui;
 gui::Text healthText;
 gui::TextInput craftSearchInput;
+
+gui::Button saveWorldButton;
 
 StateManager* stateManager = nullptr;
 
@@ -204,8 +206,8 @@ static void putIntoCategory(gui::Element* e) {
 		(elementText.find("Display Chat") != std::string::npos) ||
 		(elementText.find("Display Player Nametags") != std::string::npos) ||
 		(elementText.find("Display Custom Player Skins") != std::string::npos))
-	{
-		multiplayerContainer.addElement(e);
+		{
+			multiplayerContainer.addElement(e);
 	}
 	// AUDIO
 	else if ((elementText.find("Audio:") != std::string::npos) ||
@@ -213,12 +215,13 @@ static void putIntoCategory(gui::Element* e) {
 		(elementText.find("Music Volume:") != std::string::npos) ||
 		(elementText.find("Creature Volume:") != std::string::npos) ||
 		(elementText.find("Ambience Volume:") != std::string::npos))
-	{
-		audioContainer.addElement(e);
+		{
+			audioContainer.addElement(e);
 	}
 	else otherContainer.addElement(e);
 }
 
+// Init stuff
 $hook(void, StateIntro, init, StateManager& s)
 {
 	original(self, s);
@@ -287,6 +290,33 @@ $hook(void, StateIntro, init, StateManager& s)
 	shiftCraftCount = configJson["ShiftCraftCount"];
 	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
 	ctrlCraftCount = configJson["CtrlCraftCount"];
+}
+
+// World save button
+
+static void saveWorldCallback(void* user) {
+	for (auto& it : ((WorldSingleplayer*)user)->chunks){
+		it.second->save(((WorldSingleplayer*)user)->chunkLoader.chunksPath);
+	}
+	((WorldSingleplayer*)user)->cleanupLocal(&StateGame::instanceObj.player);
+}
+
+$hook(void, StatePause, init, StateManager& s) {
+	original(self, s);
+	if (StateGame::instanceObj.world->getType() != World::TYPE_SINGLEPLAYER) return;
+
+	saveWorldButton.alignY(gui::ALIGN_BOTTOM);
+	saveWorldButton.alignX(gui::ALIGN_CENTER_X);
+	saveWorldButton.offsetX(self->settingsButton.xOffset);
+	saveWorldButton.offsetY(self->settingsButton.yOffset-100);
+	saveWorldButton.width = self->settingsButton.width;
+	saveWorldButton.setText("Save");
+	saveWorldButton.user = StateGame::instanceObj.world.get();
+	saveWorldButton.callback = saveWorldCallback;
+	saveWorldButton.mouseDown = false;
+	saveWorldButton.selected = false;
+
+	self->ui.addElement(&saveWorldButton);
 }
 
 //Add custom settings 
@@ -720,17 +750,6 @@ $hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void*
 	return original(recipeIndex, user);
 }
 
-// Inventory sorting
-void sortInventory(GLFWwindow* window, int action, int mods) {
-	if (action != GLFW_PRESS) return;
-
-	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
-	if (!manager->isOpen()) return;
-	if (manager->secondary->name=="inventoryAndEquipment")
-		InventorySorter::sort(manager, (InventoryGrid*)((InventoryPlayer*)manager->secondary)->hotbar);
-	else
-		InventorySorter::sort(manager, (InventoryGrid*)manager->secondary);
-}
 
 // Zooming
 
@@ -762,15 +781,38 @@ $hook(void, StateGame, render, StateManager& s) {
 	original(self, s);
 }
 
+// Inventory Actions
+void sortInventory(GLFWwindow* window, int action, int mods) {
+	if (action != GLFW_PRESS) return;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
+	if (!manager->isOpen()) return;
+	if (manager->secondary->name == "inventoryAndEquipment")
+		InventorySorter::sort(manager, (InventoryGrid*)((InventoryPlayer*)manager->secondary)->hotbar);
+	else
+		InventorySorter::sort(manager, (InventoryGrid*)manager->secondary);
+}
+
+void swapHands(GLFWwindow* window, int action, int mods) {
+	if (action != GLFW_PRESS) return;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
+	if (manager->isOpen()) return;
+
+	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.equipment, 0);
+	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.hotbar, StateGame::instanceObj.player.hotbar.selectedIndex);
+	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.equipment, 0);
+}
 
 // Keybinds
-
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
 	if (!KeyBinds::isLoaded())
 	{
 		if (key == GLFW_KEY_R)
 			sortInventory(window, action, mods);
+		if (key == GLFW_KEY_F && action == GLFW_PRESS)
+			swapHands(window, action, mods);
 		if (key == GLFW_KEY_V && action == GLFW_PRESS)
 			setZooming(window, action, mods);
 	}
@@ -779,6 +821,7 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 $exec
 {
 	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
+	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
 	KeyBinds::addBind("BetterUX", "Zoom", glfw::Keys::V, KeyBindsScope::PLAYER, setZooming);
 }
 

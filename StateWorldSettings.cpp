@@ -473,3 +473,5 @@ void StateWorldSettings::windowResize(StateManager& s, int w, int h)
 {
 	updateProjection({ w, h });
 }
+
+

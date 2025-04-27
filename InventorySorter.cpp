@@ -4,8 +4,8 @@ void InventorySorter::synchronizedCursorTransfer(InventoryManager* manager, Inve
     const nlohmann::json action = {
             {"action","transfer"},
             {"cursorContents",manager->cursor.item != nullptr ? manager->cursor.item->save().dump() : ""},
-            {"inventory",manager->secondary->name},
-            {"other",manager->primary->name},
+            {"inventory",inventory->name},
+            {"other",manager->primary!=nullptr? manager->primary->name: inventory->name},
             {"slotContents", inventory->getSlot(a) != nullptr ? inventory->getSlot(a)->save().dump() : ""},
             {"slotIndex",a},
             {"transferAction",InventoryManager::ACTION_SWAP}
@@ -32,8 +32,8 @@ void InventorySorter::combineItem(InventoryManager* manager, Inventory* inventor
             manager->callback({
                 {"action","transfer"},
                 {"cursorContents",manager->cursor.item != nullptr ? manager->cursor.item->save().dump() : ""},
-                {"inventory",manager->secondary->name},
-                {"other",manager->primary->name},
+                {"inventory",inventory->name},
+                {"other",manager->primary != nullptr ? manager->primary->name : inventory->name},
                 {"slotContents", inventory->getSlot(i) != nullptr ? inventory->getSlot(i)->save().dump() : ""},
                 {"slotIndex",i},
                 {"transferAction",InventoryManager::ACTION_GIVE_MAX}

@@ -11,7 +11,7 @@ class InventorySorter {
 		int maxStackCount = 0;
 	};
 private:
-	static void synchronizedCursorTransfer(InventoryManager* manager, Inventory* inventory, int a);
+	
 	static void swapIndex(InventoryManager* manager, Inventory* inventory, int a,int b);
 	static void combineItem(InventoryManager* manager, Inventory* inventory, int fromIndex);
 	static void combineItemInOrder(InventoryManager* manager, Inventory* inventory, int fromIndex,std::vector<SortedItemInfo> order);
@@ -20,5 +20,6 @@ private:
 	static bool compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j);
 
 public:
+	static void synchronizedCursorTransfer(InventoryManager* manager, Inventory* inventory, int a);
 	static void sort(InventoryManager* manager, InventoryGrid* inventory);
 };
