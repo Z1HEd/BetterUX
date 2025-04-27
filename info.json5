@@ -1,9 +1,9 @@
 {
   id: "zihed.betterui",
-  name: "BetterUI",
+  name: "BetterUX",
   author: "ZiHEd",
-  description: "Mod that improves certain interface elements.",
-  version: "1.2",
+  descriptionFile: "description.txt",
+  version: "1.3",
   gameVersion: "0.2.1.4",
   modDLL: "4DMod.dll",
   externalDLLs: [
