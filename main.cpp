@@ -38,8 +38,6 @@ gui::Text graphicsText;
 gui::Text gameplayText;
 
 gui::Text betterUXText;
-gui::Slider zoomingValueSlider{};
-gui::CheckBox enableZoomingCheckBox{};
 
 QuadRenderer qr{};
 FontRenderer font{};
@@ -52,16 +50,6 @@ gui::Button saveWorldButton;
 StateManager* stateManager = nullptr;
 
 std::string configPath;
-
-// enables conventional zooming on button
-static bool isZoomingEnabled = true;
-
-// if true locks conventional zooming and assumes other mod is setting currentZoom
-// will zoom even if isZoomingEnabled is false
-static bool isZoomingLocked = false;
-
-static float currentZoom = 1;
-static float zoomedValue = 0.3f;
 
 void updateConfig(const std::string& path, const nlohmann::json& j)
 {
@@ -238,8 +226,6 @@ $hook(void, StateIntro, init, StateManager& s)
 
 	nlohmann::json configJson
 	{
-		{ "ZoomMultiplier", zoomedValue  },
-		{ "EnableZooming", isZoomingEnabled },
 		{ "ShiftCraftCount", shiftCraftCount},
 		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
 		{ "CtrlCraftCount", ctrlCraftCount}
@@ -259,16 +245,6 @@ $hook(void, StateIntro, init, StateManager& s)
 		}
 	}
 
-	if (!configJson.contains("ZoomMultiplier"))
-	{
-		configJson["ZoomMultiplier"] = zoomedValue;
-		updateConfig(configPath, configJson);
-	}
-	if (!configJson.contains("EnableZooming"))
-	{
-		configJson["EnableZooming"] = isZoomingEnabled;
-		updateConfig(configPath, configJson);
-	}
 
 	if (!configJson.contains("ShiftCraftCount"))
 	{
@@ -286,8 +262,6 @@ $hook(void, StateIntro, init, StateManager& s)
 		updateConfig(configPath, configJson);
 	}
 
-	zoomedValue = configJson["ZoomMultiplier"];
-	isZoomingEnabled = configJson["EnableZooming"];
 	shiftCraftCount = configJson["ShiftCraftCount"];
 	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
 	ctrlCraftCount = configJson["CtrlCraftCount"];
@@ -372,35 +346,6 @@ $hook(void, StateSettings, render, StateManager& s)
 	setTextHeaderStyle(&gameplayText, 2);
 	gameplayText.setText("Gameplay");
 	gameplayContainer.addElement(&gameplayText);
-
-	setTextHeaderStyle(&betterUXText, 2);
-	betterUXText.setText("BetterUX");
-
-	enableZoomingCheckBox.alignX(gui::ALIGN_CENTER_X);
-	enableZoomingCheckBox.checked = isZoomingEnabled;
-	enableZoomingCheckBox.setText("Enable Zooming");
-	enableZoomingCheckBox.callback = [](void* user, bool value)
-		{
-			isZoomingEnabled = value;
-			updateConfig(configPath, { { "ZoomMultiplier", zoomedValue },{ "EnableZooming", isZoomingEnabled } });
-		};
-
-	zoomingValueSlider.alignX(gui::ALIGN_CENTER_X);
-	zoomingValueSlider.range = 17; // 0,1...19
-	zoomingValueSlider.value = (1.0f / zoomedValue-1.5f)*2;
-	zoomingValueSlider.setText(std::format("Zoom Multiplier: {:.2f}", ((float)zoomingValueSlider.value / 2 + 1.5f)));
-	zoomingValueSlider.width = 500;
-	zoomingValueSlider.user = &zoomingValueSlider;
-	zoomingValueSlider.callback = [](void* user, int value)
-		{
-			zoomedValue = 1.0f / ((float)value / 2 + 1.5f);
-			zoomingValueSlider.setText(std::format("Zoom Multiplier: {:.2f}", ((float)value/2+1.5f)));
-			updateConfig(configPath, { { "ZoomMultiplier", zoomedValue },{ "EnableZooming", isZoomingEnabled } });
-		};
-
-	betterUXContainer.addElement(&betterUXText);
-	betterUXContainer.addElement(&enableZoomingCheckBox);
-	betterUXContainer.addElement(&zoomingValueSlider);
 
 	for (auto& e : self->mainContentBox.elements)
 	{
@@ -791,35 +736,6 @@ $hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void*
 	return original(recipeIndex, user);
 }
 
-// Zooming
-
-void setZooming(GLFWwindow* window, int action, int mods) {
-	if (isZoomingLocked || !isZoomingEnabled) return;
-	if (action == GLFW_PRESS) currentZoom = zoomedValue;
-	else if (action == GLFW_RELEASE) currentZoom = 1;
-}
-
-// Decrease sensitivity when zooming
-$hook(void, Player, mouseInput, GLFWwindow* window, World* world, double xpos, double ypos) {
-	if (isZoomingLocked || !isZoomingEnabled) return original(self, window, world, xpos, ypos);
-	original(self, window, world,self->mouseX+ (xpos- self->mouseX)* currentZoom, self->mouseY + (ypos - self->mouseY) * currentZoom);
-}
-// FOV changing
-$hook(void, StateGame, render, StateManager& s) {
-	static double lastTime = glfwGetTime() - 0.01;
-	double dt = glfwGetTime() - lastTime;
-	lastTime = glfwGetTime();
-	if (self->player.inventoryManager.isOpen() 
-		|| (!isZoomingEnabled && !isZoomingLocked)) return original(self, s);
-
-	if (std::abs(self->FOV - (StateSettings::instanceObj.currentFOV - 30)*currentZoom) > 0.01) {
-		self->FOV = utils::ilerp(self->FOV, (StateSettings::instanceObj.currentFOV + 30) * currentZoom, 0.38f, dt);
-		int width, height;
-		glfwGetWindowSize(s.window, &width, &height);
-		self->updateProjection(glm::max(width, 1), glm::max(height, 1));
-	}
-	original(self, s);
-}
 
 // Inventory Actions
 void sortInventory(GLFWwindow* window, int action, int mods) {
@@ -853,10 +769,8 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 	{
 		if (key == GLFW_KEY_R)
 			sortInventory(window, action, mods);
-		if (key == GLFW_KEY_F && action == GLFW_PRESS)
+		if (key == GLFW_KEY_F)
 			swapHands(window, action, mods);
-		if (key == GLFW_KEY_V && action == GLFW_PRESS)
-			setZooming(window, action, mods);
 	}
 	return original(self, window, world, key, scancode, action, mods);
 }
@@ -864,23 +778,8 @@ $exec
 {
 	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
-	KeyBinds::addBind("BetterUX", "Zoom", glfw::Keys::V, KeyBindsScope::PLAYER, setZooming);
 }
 
 // Extern functions
 
 extern "C" _declspec(dllexport) aui::VBoxContainer* getCategoryContainer() { return &categoryContainer; }
-
-extern "C" _declspec(dllexport) bool lockZooming() { 
-	if (isZoomingLocked) 
-		return false; 
-	isZoomingLocked = true; 
-	return true;
-}
-
-extern "C" _declspec(dllexport) bool unlockZooming() {
-	if (!isZoomingLocked)
-		return true;
-	isZoomingLocked = false;
-	return false;
-}
