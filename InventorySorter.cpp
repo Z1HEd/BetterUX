@@ -27,7 +27,7 @@ void InventorySorter::combineItem(InventoryManager* manager, Inventory* inventor
     synchronizedCursorTransfer(manager, inventory, fromIndex);
 
     for (int i = 0;i < inventory->getSlotCount();i++) {
-        if (inventory->getSlot(i) == nullptr || inventory->getSlot(i)->getName() != manager->cursor.item->getName()) continue;
+        if (inventory->getSlot(i) == nullptr || inventory->getSlot(i)->getName() != manager->cursor.item->getName() || inventory->getSlot(i)->count>= inventory->getSlot(i)->getStackLimit()) continue;
         if (manager->callback)
             manager->callback({
                 {"action","transfer"},
@@ -40,11 +40,36 @@ void InventorySorter::combineItem(InventoryManager* manager, Inventory* inventor
                 },
                 manager->user);
         manager->applyTransfer(InventoryManager::ACTION_GIVE_MAX, inventory->getSlot(i), manager->cursor.item, manager->secondary);
-        if (!manager->cursor.item) return;
+        if (!manager->cursor.item || manager->cursor.item->count < 1) return;
     }
+    synchronizedCursorTransfer(manager, inventory, fromIndex);
+}
 
+// only combines with those that are wrong
+void InventorySorter::combineItemInOrder(InventoryManager* manager, Inventory* inventory, int fromIndex,std::vector<InventorySorter::SortedItemInfo> order) {
     synchronizedCursorTransfer(manager, inventory, fromIndex);
 
+    for (int i = 0;i < inventory->getSlotCount();i++) {
+        if (inventory->getSlot(i) == nullptr ||
+            inventory->getSlot(i)->getName() != manager->cursor.item->getName() || 
+            inventory->getSlot(i)->count >= inventory->getSlot(i)->getStackLimit() ||
+            inventory->getSlot(i)->count == order[i].currentStackCount
+            ) continue;
+        if (manager->callback)
+            manager->callback({
+                {"action","transfer"},
+                {"cursorContents",manager->cursor.item != nullptr ? manager->cursor.item->save().dump() : ""},
+                {"inventory",manager->secondary->name},
+                {"other",manager->primary->name},
+                {"slotContents", inventory->getSlot(i) != nullptr ? inventory->getSlot(i)->save().dump() : ""},
+                {"slotIndex",i},
+                {"transferAction",InventoryManager::ACTION_GIVE_MAX}
+                },
+                manager->user);
+        manager->applyTransfer(InventoryManager::ACTION_GIVE_MAX, inventory->getSlot(i), manager->cursor.item, manager->secondary);
+        if (!manager->cursor.item || manager->cursor.item->count < 1) return;
+    }
+    synchronizedCursorTransfer(manager, inventory, fromIndex);
 }
 
 int InventorySorter::getItemCategory(Item* item) { 
@@ -173,15 +198,20 @@ void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) 
     for (int i = 0; i < totalSlots; ++i) { // For each item in the inventory
         auto* item = &inventory->getSlot(i);
         
-        while ((*item) && (*item)->getName() != sortedInventoryMap[i].itemName) {
-            InventorySorter::combineItem(manager, inventory, i); //Try to combine with the others
-            if (!(*item)  || (*item)->count<1) break; // If combined with no remainder, continue
+        while ((*item) && ((*item)->getName() != sortedInventoryMap[i].itemName || (*item)->count> sortedInventoryMap[i].currentStackCount)) {
+            InventorySorter::combineItemInOrder(manager, inventory, i, sortedInventoryMap); //Try to combine with the others
+            if (!(*item)  || (*item)->count<1 || 
+                (*item)->getName() == sortedInventoryMap[i].itemName) break; // If combined with no remainder, continue
 
             int j = 0; // Find first index of that item in supposed arrangement
             for (;j < sortedInventoryMap.size();j++) {
                 auto& itemI = inventory->getSlot(j); 
                 if (itemI != nullptr && sortedInventoryMap[j].itemName == itemI->getName()) continue;
                 if (sortedInventoryMap[j].itemName == (*item)->getName()) break;
+            }
+            if (j == sortedInventoryMap.size()) {
+                Console::printLine("Something went wrong in the sorting function!");
+                return;
             }
             InventorySorter::swapIndex(manager, inventory,i,j); // Swap it with whatever was on that index
             item = &inventory->getSlot(i); // if something was on that index, will have to sort it in its place before proceeding

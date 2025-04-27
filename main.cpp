@@ -437,10 +437,11 @@ $hook(void, StateSingleplayer, updateWorldListContainer, int wWidth, int wHeight
 		newButton.offsetY(self->worldButtons[i].yOffset);
 		newButton.user = &self->worldPaths[i];
 		newButton.callback = worldSettingsButtonCallback;
+		newButton.mouseDown = false;
+		newButton.selected = false;
 	}
 	for (int i = 0;i < worldSettingsButtons.size();i++) {
 		self->worldListContainer.addElement(&worldSettingsButtons[i]);
-		worldSettingsButtons[i].deselect();
 	}
 }
 
