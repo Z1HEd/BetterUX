@@ -24,6 +24,9 @@
     <ClCompile Include="StateWorldSettings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="InventoryActions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="info.json5" />
@@ -36,6 +39,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StateWorldSettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="InventoryActions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

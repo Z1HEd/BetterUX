@@ -5,6 +5,7 @@
 #include "auilib/auilib.h"
 #include "4DKeyBinds.h"
 #include "InventorySorter.h"
+#include "InventoryActions.h"
 #include "StateWorldSettings.h"
 #include <fstream>
 
@@ -657,6 +658,44 @@ $hook(void, StateGame, charInput, StateManager& s, uint32_t codepoint)
 }
 bool shiftHeldDown = false;
 bool ctrlHeldDown = false;
+
+bool hotbarSwapInput(StateManager& s, int key) {
+	if (key<GLFW_KEY_1 || key>GLFW_KEY_8) return false;
+	
+	double cursorX, cursorY;
+	glfwGetCursorPos(s.window, &cursorX, &cursorY);
+
+	Inventory* inventory = &StateGame::instanceObj.player.inventory;
+	int cursorSlotIndex= inventory->getSlotIndex({ cursorX,cursorY });
+
+	if (cursorSlotIndex < 0) {
+		inventory = &StateGame::instanceObj.player.hotbar;
+		cursorSlotIndex = inventory->getSlotIndex({ cursorX,cursorY });
+	}
+
+	if (cursorSlotIndex < 0) {
+		inventory = &StateGame::instanceObj.player.equipment;
+		cursorSlotIndex = inventory->getSlotIndex({ cursorX,cursorY });
+	}
+
+	if (cursorSlotIndex < 0) return false;
+
+
+	int hotbarSlotIndex = key - GLFW_KEY_1;
+
+	if (inventory == &StateGame::instanceObj.player.hotbar && hotbarSlotIndex == cursorSlotIndex) return true;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
+
+	InventoryActions::swapIndex(manager,
+		inventory,
+		&StateGame::instanceObj.player.hotbar,
+		cursorSlotIndex,
+		hotbarSlotIndex);
+
+	return true;
+}
+
 $hook(void, StateGame, keyInput, StateManager& s, int key, int scancode, int action, int mods)
 {
 	// used for multicrafting
@@ -675,6 +714,8 @@ $hook(void, StateGame, keyInput, StateManager& s, int key, int scancode, int act
 		}
 	}
 
+	if (self->player.inventoryManager.isOpen() && action == GLFW_PRESS && hotbarSwapInput(s,key))
+		return;
 	if (!self->player.inventoryManager.isOpen() || !craftSearchInput.active || key == GLFW_KEY_ESCAPE)
 		return original(self, s, key, scancode, action, mods);
 	if (ui.keyInput(key, scancode, action, mods))
@@ -750,7 +791,6 @@ $hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void*
 	return original(recipeIndex, user);
 }
 
-
 // Zooming
 
 void setZooming(GLFWwindow* window, int action, int mods) {
@@ -794,14 +834,16 @@ void sortInventory(GLFWwindow* window, int action, int mods) {
 }
 
 void swapHands(GLFWwindow* window, int action, int mods) {
-	if (action != GLFW_PRESS) return;
+	if (action != GLFW_PRESS || craftSearchInput.active) return;
 
 	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
-	if (manager->isOpen()) return;
 
-	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.equipment, 0);
-	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.hotbar, StateGame::instanceObj.player.hotbar.selectedIndex);
-	InventorySorter::synchronizedCursorTransfer(manager, &StateGame::instanceObj.player.equipment, 0);
+	InventoryActions::swapIndex(manager,
+		&StateGame::instanceObj.player.equipment,
+		&StateGame::instanceObj.player.hotbar,
+		0,
+		StateGame::instanceObj.player.hotbar.selectedIndex);
+
 }
 
 // Keybinds

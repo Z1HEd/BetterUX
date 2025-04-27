@@ -93,6 +93,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="InventoryActions.cpp" />
     <ClCompile Include="InventorySorter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="StateWorldSettings.cpp" />
@@ -102,6 +103,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BetterUI.h" />
+    <ClInclude Include="InventoryActions.h" />
     <ClInclude Include="InventorySorter.h" />
     <ClInclude Include="StateWorldSettings.h" />
   </ItemGroup>
