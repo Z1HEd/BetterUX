@@ -260,6 +260,11 @@ bool hotbarSwapInput(StateManager& s, int key) {
 		cursorSlotIndex = inventory->getSlotIndex({ cursorX,cursorY });
 	}
 
+	if (cursorSlotIndex < 0 && StateGame::instanceObj.player.inventoryManager.secondary) {
+		inventory = StateGame::instanceObj.player.inventoryManager.secondary;
+		cursorSlotIndex = inventory->getSlotIndex({ cursorX,cursorY });
+	}
+
 	if (cursorSlotIndex < 0) return false;
 
 
