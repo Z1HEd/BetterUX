@@ -15,5 +15,5 @@ private:
 	static int getItemCategory(Item* item);
 	static bool compareNames(InventorySorter::SortedItemInfo& i, InventorySorter::SortedItemInfo& j);
 public:
-	static void sort(InventoryManager* manager, InventoryGrid* inventory);
+	static void sort(InventoryManager* manager, InventoryGrid* inventory, Inventory* other);
 };

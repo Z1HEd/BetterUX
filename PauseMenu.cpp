@@ -15,8 +15,8 @@ $hook(void, StatePause, init, StateManager& s) {
 	original(self, s);
 	if (StateGame::instanceObj.world->getType() != World::TYPE_SINGLEPLAYER) return;
 
-	self->settingsButton.offsetY(self->returnButton.yOffset);
-	self->returnButton.offsetY(self->returnButton.yOffset-100);
+	self->settingsButton.offsetY(0);
+	self->returnButton.offsetY(self->settingsButton.yOffset-100);
 	self->settingsButton.alignY(gui::ALIGN_CENTER_Y);
 
 	saveWorldButton.alignY(gui::ALIGN_BOTTOM);

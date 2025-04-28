@@ -117,7 +117,7 @@ std::vector<InventorySorter::SortedItemInfo> InventorySorter::generateSortedInve
 }
 
 
-void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) {
+void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory,Inventory* other) {
     int columns = inventory->size.x;
     int rows = inventory->size.y;
     int totalSlots = inventory->getSlotCount();
@@ -127,10 +127,11 @@ void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) 
     for (int i = 0; i < totalSlots; ++i) { // For each item in the inventory
         auto* item = &inventory->getSlot(i);
         
-        while ((*item) && ((*item)->getName() != sortedInventoryMap[i].itemName || (*item)->count > sortedInventoryMap[i].currentStackCount)) {
+        while ((*item) && ((*item)->getName() != sortedInventoryMap[i].itemName || (int)(*item)->count > sortedInventoryMap[i].currentStackCount)) {
             InventoryActions::combineItemIf(manager, inventory, i, 
                 [&sortedInventoryMap, i](const std::unique_ptr<Item>& item) 
-                {return sortedInventoryMap[i].currentStackCount != item->count;}); //Try to combine with the others
+                {return sortedInventoryMap[i].currentStackCount != item->count;},
+                other); //Try to combine with the others
             if (!(*item)  || (*item)->count<1 || 
                 (*item)->getName() == sortedInventoryMap[i].itemName) break; // If combined with no remainder, continue
 
@@ -144,7 +145,7 @@ void InventorySorter::sort(InventoryManager* manager, InventoryGrid* inventory) 
                 Console::printLine("Something went wrong in the sorting function!");
                 return;
             }
-            InventoryActions::swapIndex(manager, inventory, inventory,i,j); // Swap it with whatever was on that index
+            InventoryActions::swapIndex(manager, inventory, inventory,i,j, other); // Swap it with whatever was on that index
             item = &inventory->getSlot(i); // if something was on that index, will have to sort it in its place before proceeding
         }
     }

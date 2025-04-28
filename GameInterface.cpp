@@ -273,7 +273,7 @@ bool hotbarSwapInput(StateManager& s, int key) {
 		inventory,
 		&StateGame::instanceObj.player.hotbar,
 		cursorSlotIndex,
-		hotbarSlotIndex);
+		hotbarSlotIndex, &StateGame::instanceObj.player.hotbar);
 
 	return true;
 }
@@ -330,9 +330,9 @@ void sortInventory(GLFWwindow* window, int action, int mods) {
 	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
 	if (!manager->isOpen()) return;
 	if (manager->secondary->name == "inventoryAndEquipment")
-		InventorySorter::sort(manager, (InventoryGrid*)((InventoryPlayer*)manager->secondary)->hotbar);
+		InventorySorter::sort(manager, (InventoryGrid*)((InventoryPlayer*)manager->secondary)->hotbar, (InventoryGrid*)manager->primary);
 	else
-		InventorySorter::sort(manager, (InventoryGrid*)manager->secondary);
+		InventorySorter::sort(manager, (InventoryGrid*)manager->secondary,(Inventory*)manager->primary);
 }
 
 void swapHands(GLFWwindow* window, int action, int mods) {
@@ -344,7 +344,7 @@ void swapHands(GLFWwindow* window, int action, int mods) {
 		&StateGame::instanceObj.player.equipment,
 		&StateGame::instanceObj.player.hotbar,
 		0,
-		StateGame::instanceObj.player.hotbar.selectedIndex);
+		StateGame::instanceObj.player.hotbar.selectedIndex, &StateGame::instanceObj.player.hotbar);
 
 }
 
