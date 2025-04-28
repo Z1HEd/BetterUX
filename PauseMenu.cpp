@@ -10,15 +10,20 @@ static void saveWorldCallback(void* user) {
 	((WorldSingleplayer*)user)->cleanupLocal(&StateGame::instanceObj.player);
 }
 
+
 $hook(void, StatePause, init, StateManager& s) {
 	original(self, s);
 	if (StateGame::instanceObj.world->getType() != World::TYPE_SINGLEPLAYER) return;
 
+	self->settingsButton.offsetY(self->returnButton.yOffset);
+	self->returnButton.offsetY(self->returnButton.yOffset-100);
+	self->settingsButton.alignY(gui::ALIGN_CENTER_Y);
+
 	saveWorldButton.alignY(gui::ALIGN_BOTTOM);
 	saveWorldButton.alignX(gui::ALIGN_CENTER_X);
-	saveWorldButton.offsetX(self->settingsButton.xOffset);
-	saveWorldButton.offsetY(self->settingsButton.yOffset - 100);
-	saveWorldButton.width = self->settingsButton.width;
+	saveWorldButton.offsetX(self->quitButton.xOffset);
+	saveWorldButton.offsetY(self->quitButton.yOffset-100);
+	saveWorldButton.width = self->quitButton.width;
 	saveWorldButton.setText("Save");
 	saveWorldButton.user = StateGame::instanceObj.world.get();
 	saveWorldButton.callback = saveWorldCallback;

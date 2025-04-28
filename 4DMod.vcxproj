@@ -83,6 +83,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <AdditionalIncludeDirectories>./4dm.h;./4dm.h/networking/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -106,7 +107,6 @@
     <None Include="info.json5" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BetterUI.h" />
     <ClInclude Include="InventoryActions.h" />
     <ClInclude Include="InventorySorter.h" />
     <ClInclude Include="StateWorldSettings.h" />
