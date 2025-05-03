@@ -1,5 +1,7 @@
+#define GLFW_EXPOSE_NATIVE_WIN32 
 #include "StateServerList.h"
 #include "fstream"
+#include <GLFW/glfw3native.h>
 
 StateServerList StateServerList::instanceObj = StateServerList();
 
@@ -71,14 +73,20 @@ void StateServerList::updateServerListContainer(int wWidth, int wHeight) {
 
 nlohmann::json StateServerList::ServerInfo::save() {
 	return {
-			{"displayedName", displayedName},
-			{"address", address}
+		{"displayedName", displayedName},
+		{"address", address},
+		{"playerNameOverride",playerNameOverride},
+		{"uuidOverride",uuidOverride},
+		{"skinPathOverride",skinPathOverride}
 	};;
 }
 
 StateServerList::ServerInfo StateServerList::ServerInfo::createFromJSON(nlohmann::json j) {
 	return{ j.at("address").get<std::string>(),
-			j.at("displayedName").get<std::string>() };
+			j.at("displayedName").get<std::string>(),
+			j.at("playerNameOverride").get<std::string>(),
+			j.at("uuidOverride").get<std::string>(), 
+			j.at("skinPathOverride").get<std::string>()};
 }
 
 void StateServerList::loadServers() {
@@ -128,21 +136,78 @@ void StateServerList::saveServers() {
 
 // Buttons callbacks
 
+void loadDefaultPlayerSettings() {
+	std::ifstream file("settings.json");
+	if (!file.is_open()) return;
+	
+	nlohmann::json jsonFile = nlohmann::json::parse(file);
+	file.close();
+
+	stl::string skin = jsonFile["skin"].get<std::string>();
+
+	StateSkinChooser::instanceObj.skinPath = skin;
+	StateSkinChooser::instanceObj.skin.load(StateSkinChooser::instanceObj.skinPath);
+	StateSkinChooser::instanceObj.skinRenderer.skin = &StateSkinChooser::instanceObj.skin;
+
+	std::ifstream file2("mpSettings.json");
+	if (!file2.is_open()) return;
+
+	nlohmann::json jsonFile2 = nlohmann::json::parse(file2);
+	file2.close();
+
+	StateMultiplayer::instanceObj.displayNameInput.setText(jsonFile2["displayName"].get<std::string>());
+
+	
+	std::ifstream file3("uuid.txt");
+	if (!file3.is_open()) return;
+
+	std::string uuid;
+	file3 >> uuid;
+
+	StateMultiplayer::instanceObj.uuidInput.setText(uuid);
+
+	file3.close();
+}
+
 void StateServerList::addServerCallback(void* user) {
 	StateServerList::instanceObj.currentUI = &StateServerList::instanceObj.addServerUI;
 }
 
 void StateServerList::serverButtonCallback(void* user) {
+	ServerInfo& info = (*(ServerInfo*)user);
+
+	loadDefaultPlayerSettings();
+
 	StateServerList::instanceObj.manager->changeState(&StateMultiplayer::instanceObj);
-	StateMultiplayer::instanceObj.serverAddressInput.setText(((ServerInfo*)user)->address);
+	StateMultiplayer::instanceObj.serverAddressInput.setText(info.address);
+	if (info.uuidOverride != "")
+	{
+		std::ifstream uuidFile(info.uuidOverride);
+		if (!uuidFile.is_open()) return;
+		std::string uuid;
+		uuidFile >> uuid;
+		StateMultiplayer::instanceObj.uuidInput.setText(uuid);
+	}
+	if (info.playerNameOverride != "")
+		StateMultiplayer::instanceObj.displayNameInput.setText(info.playerNameOverride);
+	if (info.skinPathOverride != "") {
+		StateSkinChooser::instanceObj.skinPath = info.skinPathOverride;
+		StateSkinChooser::instanceObj.skin.load(StateSkinChooser::instanceObj.skinPath);
+		StateSkinChooser::instanceObj.skinRenderer.skin = &StateSkinChooser::instanceObj.skin;
+	}
+
 	StateMultiplayer::instanceObj.joinButtonCallback(StateMultiplayer::instanceObj.joinButton.user);
 
 }
 
 void StateServerList::addServerConfirmCallback(void* user) {
-	StateServerList::instanceObj.servers.push_back({
+	StateServerList::instanceObj.servers.emplace_back(
 		StateServerList::instanceObj.addServerAdressInput.text,
-		StateServerList::instanceObj.addServerNameInput.text});
+		StateServerList::instanceObj.addServerNameInput.text,
+		StateServerList::instanceObj.addServerNameOverrideInput.text,
+		StateServerList::instanceObj.addServerNameInput.text,
+		StateServerList::instanceObj.addServerAdressInput.text
+		);
 	StateServerList::instanceObj.saveServers();
 	StateServerList::instanceObj.loadServers();
 	int wWidth, wHeight;
@@ -154,6 +219,9 @@ void StateServerList::addServerConfirmCallback(void* user) {
 void StateServerList::editServerConfirmCallback(void* user) {
 	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].address = ((StateServerList*)user)->editServerAdressInput.text;
 	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].displayedName = ((StateServerList*)user)->editServerNameInput.text;
+	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].playerNameOverride = ((StateServerList*)user)->editServerNameOverrideInput.text;
+	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].uuidOverride = ((StateServerList*)user)->editServerUuidOverrideInput.text;
+	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].skinPathOverride = ((StateServerList*)user)->editServerSkinPathOverrideInput.text;
 	((StateServerList*)user)->serverButtons[((StateServerList*)user)->editedServerIndex].setText(((StateServerList*)user)->editServerNameInput.text);
 	((StateServerList*)user)->currentUI =&((StateServerList*)user)->mainUI;
 	((StateServerList*)user)->saveServers();
@@ -175,6 +243,10 @@ void StateServerList::editServerRemoveCallback(void* user) {
 void StateServerList::editServerCallback(void* user) {
 	StateServerList::instanceObj.editServerAdressInput.setText( StateServerList::instanceObj.servers[(int)user].address);
 	StateServerList::instanceObj.editServerNameInput.setText(StateServerList::instanceObj.servers[(int)user].displayedName);
+	StateServerList::instanceObj.editServerNameOverrideInput.setText(StateServerList::instanceObj.servers[(int)user].playerNameOverride);
+	StateServerList::instanceObj.editServerUuidOverrideInput.setText(StateServerList::instanceObj.servers[(int)user].uuidOverride);
+	StateServerList::instanceObj.editServerSkinPathOverrideInput.setText(StateServerList::instanceObj.servers[(int)user].skinPathOverride);
+
 	StateServerList::instanceObj.editedServerIndex = (int)user;
 	StateServerList::instanceObj.currentUI = &StateServerList::instanceObj.editServerUI;
 }
@@ -183,6 +255,42 @@ void StateServerList::savePlayerSettingsCallback(void* user) {
 	StateServerList::instanceObj.currentUI = &StateServerList::instanceObj.mainUI;
 	StateMultiplayer::instanceObj.close(*StateServerList::instanceObj.manager);
 	StateMultiplayer::instanceObj.init(*StateServerList::instanceObj.manager);
+}
+
+std::filesystem::path getUUIDPath()
+{
+	wchar_t szFile[MAX_PATH] = {};
+	OPENFILENAMEW ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = glfwGetWin32Window(StateServerList::instanceObj.manager->window);
+	ofn.hInstance = nullptr;
+	ofn.lpstrFilter = L"Text Files (*.txt)\0*.txt\0All Files (*.*)\0*.*\0\0";
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.nFilterIndex = 1;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+	if (GetOpenFileNameW(&ofn))
+		return std::filesystem::path(ofn.lpstrFile);
+	return {};
+}
+
+std::filesystem::path getSkinPath()
+{
+	wchar_t szFile[MAX_PATH] = {};
+	OPENFILENAMEW ofn;
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = glfwGetWin32Window(StateServerList::instanceObj.manager->window);
+	ofn.hInstance = nullptr;
+	ofn.lpstrFilter = L"PNG Files (*.png)\0*.png\0All Files (*.*)\0*.*\0\0";
+	ofn.lpstrFile = szFile;
+	ofn.nMaxFile = MAX_PATH;
+	ofn.nFilterIndex = 1;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+	if (GetOpenFileNameW(&ofn))
+		return std::filesystem::path(ofn.lpstrFile);
+	return {};
 }
 
 // Inputs and updates
@@ -201,6 +309,8 @@ void StateServerList::init(StateManager& s)
 	StateMultiplayer::instanceObj.init(*StateServerList::instanceObj.manager);
 	StateMultiplayer::instanceObj.connectionErrorOkButton.callback =
 		[](void* user) {StateServerList::instanceObj.manager->changeState(&StateServerList::instanceObj);};
+
+	StateSkinChooser::instanceObj.init(*StateServerList::instanceObj.manager);
 
 	// Main UI
 	{
@@ -267,6 +377,8 @@ void StateServerList::init(StateManager& s)
 
 	// Add server UI
 	{
+		// MAIN TITLE
+
 		addServerTitle.setText("Add Server");
 		addServerTitle.alignX(ALIGN_CENTER_X);
 		addServerTitle.alignY(ALIGN_TOP);
@@ -275,9 +387,12 @@ void StateServerList::init(StateManager& s)
 		addServerTitle.shadow = true;
 		addServerTitle.fancy = true;
 
+		// SERVER NAME INPUT
+
 		addServerNameTitle.setText("Displayed Name:");
 		addServerNameTitle.alignX(ALIGN_CENTER_X);
 		addServerNameTitle.alignY(ALIGN_TOP);
+		addServerNameTitle.offsetX(-250);
 		addServerNameTitle.offsetY(150);
 		addServerNameTitle.size = 2;
 		addServerNameTitle.shadow = true;
@@ -285,11 +400,15 @@ void StateServerList::init(StateManager& s)
 		addServerNameInput.width = 300;
 		addServerNameInput.alignX(ALIGN_CENTER_X);
 		addServerNameInput.alignY(ALIGN_TOP);
+		addServerNameInput.offsetX(-250);
 		addServerNameInput.offsetY(200);
+
+		// SERVER ADDRESS INPUT
 
 		addServerAdressTitle.setText("Adress:");
 		addServerAdressTitle.alignX(ALIGN_CENTER_X);
 		addServerAdressTitle.alignY(ALIGN_TOP);
+		addServerAdressTitle.offsetX(-250);
 		addServerAdressTitle.offsetY(300);
 		addServerAdressTitle.size = 2;
 		addServerAdressTitle.shadow = true;
@@ -297,7 +416,94 @@ void StateServerList::init(StateManager& s)
 		addServerAdressInput.width = 300;
 		addServerAdressInput.alignX(ALIGN_CENTER_X);
 		addServerAdressInput.alignY(ALIGN_TOP);
+		addServerAdressInput.offsetX(-250);
 		addServerAdressInput.offsetY(350);
+
+		// PLAYER UUID OVERRIDE
+	
+		addServerUuidOverrideTitle.setText("UUID Override:");
+		addServerUuidOverrideTitle.alignX(ALIGN_CENTER_X);
+		addServerUuidOverrideTitle.alignY(ALIGN_TOP);
+		addServerUuidOverrideTitle.offsetX(250);
+		addServerUuidOverrideTitle.offsetY(150);
+		addServerUuidOverrideTitle.size = 2;
+		addServerUuidOverrideTitle.shadow = true;
+
+		addServerUuidOverrideInput.editable = false;
+		addServerUuidOverrideInput.width = 300;
+		addServerUuidOverrideInput.alignX(ALIGN_CENTER_X);
+		addServerUuidOverrideInput.alignY(ALIGN_TOP);
+		addServerUuidOverrideInput.offsetX(250);
+		addServerUuidOverrideInput.offsetY(200);
+
+		addServerClearUuidOverrideButton.setText("Clear");
+		addServerClearUuidOverrideButton.width = 90;
+		addServerClearUuidOverrideButton.callback = [](void* user) {StateServerList::instanceObj.addServerUuidOverrideInput.setText("");};
+		addServerClearUuidOverrideButton.alignX(ALIGN_CENTER_X);
+		addServerClearUuidOverrideButton.alignY(ALIGN_TOP);
+		addServerClearUuidOverrideButton.offsetX(45);
+		addServerClearUuidOverrideButton.offsetY(200);
+
+		addServerSelectUuidOverrideButton.setText("Pick");
+		addServerSelectUuidOverrideButton.width = 90;
+		addServerSelectUuidOverrideButton.callback = [](void* user) {
+			StateServerList::instanceObj.addServerUuidOverrideInput.setText(getUUIDPath().string());
+			};
+		addServerSelectUuidOverrideButton.alignX(ALIGN_CENTER_X);
+		addServerSelectUuidOverrideButton.alignY(ALIGN_TOP);
+		addServerSelectUuidOverrideButton.offsetX(455);
+		addServerSelectUuidOverrideButton.offsetY(200);
+
+		// SKIN PATH OVERRIDE
+
+		addServerSkinPathOverrideTitle.setText("Skin Path Override:");
+		addServerSkinPathOverrideTitle.alignX(ALIGN_CENTER_X);
+		addServerSkinPathOverrideTitle.alignY(ALIGN_TOP);
+		addServerSkinPathOverrideTitle.offsetX(250);
+		addServerSkinPathOverrideTitle.offsetY(300);
+		addServerSkinPathOverrideTitle.size = 2;
+		addServerSkinPathOverrideTitle.shadow = true;
+
+		addServerSkinPathOverrideInput.editable = false;
+		addServerSkinPathOverrideInput.width = 300;
+		addServerSkinPathOverrideInput.alignX(ALIGN_CENTER_X);
+		addServerSkinPathOverrideInput.alignY(ALIGN_TOP);
+		addServerSkinPathOverrideInput.offsetX(250);
+		addServerSkinPathOverrideInput.offsetY(350);
+
+		addServerClearSkinPathOverrideButton.setText("Clear");
+		addServerClearSkinPathOverrideButton.width = 90;
+		addServerClearSkinPathOverrideButton.callback = [](void* user) {StateServerList::instanceObj.addServerSkinPathOverrideInput.setText("");};
+		addServerClearSkinPathOverrideButton.alignX(ALIGN_CENTER_X);
+		addServerClearSkinPathOverrideButton.alignY(ALIGN_TOP);
+		addServerClearSkinPathOverrideButton.offsetX(45);
+		addServerClearSkinPathOverrideButton.offsetY(350);
+
+		addServerSelectSkinPathOverrideButton.setText("Pick");
+		addServerSelectSkinPathOverrideButton.width = 90;
+		addServerSelectSkinPathOverrideButton.callback = [](void* user) {
+			StateServerList::instanceObj.addServerSkinPathOverrideInput.setText(getSkinPath().string());
+			};
+		addServerSelectSkinPathOverrideButton.alignX(ALIGN_CENTER_X);
+		addServerSelectSkinPathOverrideButton.alignY(ALIGN_TOP);
+		addServerSelectSkinPathOverrideButton.offsetX(455);
+		addServerSelectSkinPathOverrideButton.offsetY(350);
+
+		// PLAYER NAME OVERRIDE
+
+		addServerNameOverrideTitle.setText("Player Name Override:");
+		addServerNameOverrideTitle.alignX(ALIGN_CENTER_X);
+		addServerNameOverrideTitle.alignY(ALIGN_TOP);
+		addServerNameOverrideTitle.offsetY(450);
+		addServerNameOverrideTitle.size = 2;
+		addServerNameOverrideTitle.shadow = true;
+
+		addServerNameOverrideInput.width = 300;
+		addServerNameOverrideInput.alignX(ALIGN_CENTER_X);
+		addServerNameOverrideInput.alignY(ALIGN_TOP);
+		addServerNameOverrideInput.offsetY(500);
+
+		// BUTTONS
 
 		addServerCancelButton.setText("Cancel");
 		addServerCancelButton.offsetX(50);
@@ -315,7 +521,9 @@ void StateServerList::init(StateManager& s)
 		addServerConfirmButton.callback = addServerConfirmCallback;
 		addServerConfirmButton.alignX(ALIGN_RIGHT);
 		addServerConfirmButton.alignY(ALIGN_BOTTOM);
-	
+
+		// FINISH UP
+
 		addServerUI.addElement(&addServerTitle);
 		addServerUI.addElement(&addServerAdressTitle);
 		addServerUI.addElement(&addServerAdressInput);
@@ -323,6 +531,19 @@ void StateServerList::init(StateManager& s)
 		addServerUI.addElement(&addServerNameInput);
 		addServerUI.addElement(&addServerCancelButton);
 		addServerUI.addElement(&addServerConfirmButton);
+
+		addServerUI.addElement(&addServerClearSkinPathOverrideButton);
+		addServerUI.addElement(&addServerSelectSkinPathOverrideButton);
+		addServerUI.addElement(&addServerSkinPathOverrideTitle);
+		addServerUI.addElement(&addServerSkinPathOverrideInput);
+
+		addServerUI.addElement(&addServerClearUuidOverrideButton);
+		addServerUI.addElement(&addServerSelectUuidOverrideButton);
+		addServerUI.addElement(&addServerUuidOverrideTitle);
+		addServerUI.addElement(&addServerUuidOverrideInput);
+
+		addServerUI.addElement(&addServerNameOverrideTitle);
+		addServerUI.addElement(&addServerNameOverrideInput);
 
 		addServerUI.window = s.window;
 		addServerUI.viewportCallback = viewportCallback;
@@ -334,6 +555,9 @@ void StateServerList::init(StateManager& s)
 
 	// Edit server UI
 	{
+
+		// TITLE
+
 		editServerTitle.setText("Server Settings");
 		editServerTitle.alignX(ALIGN_CENTER_X);
 		editServerTitle.alignY(ALIGN_TOP);
@@ -342,9 +566,12 @@ void StateServerList::init(StateManager& s)
 		editServerTitle.shadow = true;
 		editServerTitle.fancy = true;
 
+		// SERVER NAME
+
 		editServerNameTitle.setText("Displayed Name:");
 		editServerNameTitle.alignX(ALIGN_CENTER_X);
 		editServerNameTitle.alignY(ALIGN_TOP);
+		editServerNameTitle.offsetX(-250);
 		editServerNameTitle.offsetY(150);
 		editServerNameTitle.size = 2;
 		editServerNameTitle.shadow = true;
@@ -352,11 +579,15 @@ void StateServerList::init(StateManager& s)
 		editServerNameInput.width = 300;
 		editServerNameInput.alignX(ALIGN_CENTER_X);
 		editServerNameInput.alignY(ALIGN_TOP);
+		editServerNameInput.offsetX(-250);
 		editServerNameInput.offsetY(200);
+
+		// SERVER ADDRESS
 
 		editServerAdressTitle.setText("Adress:");
 		editServerAdressTitle.alignX(ALIGN_CENTER_X);
 		editServerAdressTitle.alignY(ALIGN_TOP);
+		editServerAdressTitle.offsetX(-250);
 		editServerAdressTitle.offsetY(300);
 		editServerAdressTitle.size = 2;
 		editServerAdressTitle.shadow = true;
@@ -364,7 +595,94 @@ void StateServerList::init(StateManager& s)
 		editServerAdressInput.width = 300;
 		editServerAdressInput.alignX(ALIGN_CENTER_X);
 		editServerAdressInput.alignY(ALIGN_TOP);
+		editServerAdressInput.offsetX(-250);
 		editServerAdressInput.offsetY(350);
+
+		// PLAYER UUID OVERRIDE
+
+		editServerUuidOverrideTitle.setText("UUID Override:");
+		editServerUuidOverrideTitle.alignX(ALIGN_CENTER_X);
+		editServerUuidOverrideTitle.alignY(ALIGN_TOP);
+		editServerUuidOverrideTitle.offsetX(250);
+		editServerUuidOverrideTitle.offsetY(150);
+		editServerUuidOverrideTitle.size = 2;
+		editServerUuidOverrideTitle.shadow = true;
+
+		editServerUuidOverrideInput.editable = false;
+		editServerUuidOverrideInput.width = 300;
+		editServerUuidOverrideInput.alignX(ALIGN_CENTER_X);
+		editServerUuidOverrideInput.alignY(ALIGN_TOP);
+		editServerUuidOverrideInput.offsetX(250);
+		editServerUuidOverrideInput.offsetY(200);
+
+		editServerClearUuidOverrideButton.setText("Clear");
+		editServerClearUuidOverrideButton.width = 90;
+		editServerClearUuidOverrideButton.callback = [](void* user) {StateServerList::instanceObj.editServerUuidOverrideInput.setText("");};
+		editServerClearUuidOverrideButton.alignX(ALIGN_CENTER_X);
+		editServerClearUuidOverrideButton.alignY(ALIGN_TOP);
+		editServerClearUuidOverrideButton.offsetX(45);
+		editServerClearUuidOverrideButton.offsetY(200);
+
+		editServerSelectUuidOverrideButton.setText("Pick");
+		editServerSelectUuidOverrideButton.width = 90;
+		editServerSelectUuidOverrideButton.callback = [](void* user) {
+			StateServerList::instanceObj.editServerUuidOverrideInput.setText(getUUIDPath().string());
+			};
+		editServerSelectUuidOverrideButton.alignX(ALIGN_CENTER_X);
+		editServerSelectUuidOverrideButton.alignY(ALIGN_TOP);
+		editServerSelectUuidOverrideButton.offsetX(455);
+		editServerSelectUuidOverrideButton.offsetY(200);
+
+		// SKIN PATH OVERRIDE
+
+		editServerSkinPathOverrideTitle.setText("Skin Path Override:");
+		editServerSkinPathOverrideTitle.alignX(ALIGN_CENTER_X);
+		editServerSkinPathOverrideTitle.alignY(ALIGN_TOP);
+		editServerSkinPathOverrideTitle.offsetX(250);
+		editServerSkinPathOverrideTitle.offsetY(300);
+		editServerSkinPathOverrideTitle.size = 2;
+		editServerSkinPathOverrideTitle.shadow = true;
+
+		editServerSkinPathOverrideInput.editable = false;
+		editServerSkinPathOverrideInput.width = 300;
+		editServerSkinPathOverrideInput.alignX(ALIGN_CENTER_X);
+		editServerSkinPathOverrideInput.alignY(ALIGN_TOP);
+		editServerSkinPathOverrideInput.offsetX(250);
+		editServerSkinPathOverrideInput.offsetY(350);
+
+		editServerClearSkinPathOverrideButton.setText("Clear");
+		editServerClearSkinPathOverrideButton.width = 90;
+		editServerClearSkinPathOverrideButton.callback = [](void* user) {StateServerList::instanceObj.editServerSkinPathOverrideInput.setText("");};
+		editServerClearSkinPathOverrideButton.alignX(ALIGN_CENTER_X);
+		editServerClearSkinPathOverrideButton.alignY(ALIGN_TOP);
+		editServerClearSkinPathOverrideButton.offsetX(45);
+		editServerClearSkinPathOverrideButton.offsetY(350);
+
+		editServerSelectSkinPathOverrideButton.setText("Pick");
+		editServerSelectSkinPathOverrideButton.width = 90;
+		editServerSelectSkinPathOverrideButton.callback = [](void* user) {
+			StateServerList::instanceObj.editServerSkinPathOverrideInput.setText(getSkinPath().string());
+			};
+		editServerSelectSkinPathOverrideButton.alignX(ALIGN_CENTER_X);
+		editServerSelectSkinPathOverrideButton.alignY(ALIGN_TOP);
+		editServerSelectSkinPathOverrideButton.offsetX(455);
+		editServerSelectSkinPathOverrideButton.offsetY(350);
+
+		// PLAYER NAME OVERRIDE
+
+		editServerNameOverrideTitle.setText("Player Name Override:");
+		editServerNameOverrideTitle.alignX(ALIGN_CENTER_X);
+		editServerNameOverrideTitle.alignY(ALIGN_TOP);
+		editServerNameOverrideTitle.offsetY(450);
+		editServerNameOverrideTitle.size = 2;
+		editServerNameOverrideTitle.shadow = true;
+
+		editServerNameOverrideInput.width = 300;
+		editServerNameOverrideInput.alignX(ALIGN_CENTER_X);
+		editServerNameOverrideInput.alignY(ALIGN_TOP);
+		editServerNameOverrideInput.offsetY(500);
+
+		// BUTTONS
 
 		editServerCancelButton.setText("Cancel");
 		editServerCancelButton.offsetX(50);
@@ -400,6 +718,19 @@ void StateServerList::init(StateManager& s)
 		editServerUI.addElement(&editServerCancelButton);
 		editServerUI.addElement(&editServerConfirmButton);
 		editServerUI.addElement(&editServerRemoveButton);
+
+		editServerUI.addElement(&editServerClearSkinPathOverrideButton);
+		editServerUI.addElement(&editServerSelectSkinPathOverrideButton);
+		editServerUI.addElement(&editServerSkinPathOverrideTitle);
+		editServerUI.addElement(&editServerSkinPathOverrideInput);
+
+		editServerUI.addElement(&editServerClearUuidOverrideButton);
+		editServerUI.addElement(&editServerSelectUuidOverrideButton);
+		editServerUI.addElement(&editServerUuidOverrideTitle);
+		editServerUI.addElement(&editServerUuidOverrideInput);
+
+		editServerUI.addElement(&editServerNameOverrideTitle);
+		editServerUI.addElement(&editServerNameOverrideInput);
 
 		editServerUI.window = s.window;
 		editServerUI.viewportCallback = viewportCallback;

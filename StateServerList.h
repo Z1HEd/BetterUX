@@ -11,6 +11,9 @@ public:
 	struct ServerInfo {
 		stl::string address;
 		stl::string displayedName;
+		stl::string playerNameOverride;
+		stl::string uuidOverride;
+		stl::string skinPathOverride;
 
 		nlohmann::json save();
 		static ServerInfo createFromJSON(nlohmann::json j);
@@ -54,6 +57,17 @@ public:
 	gui::Text addServerAdressTitle;
 	gui::TextInput addServerAdressInput;
 
+	gui::Text addServerNameOverrideTitle;
+	gui::TextInput addServerNameOverrideInput;
+	gui::Text addServerUuidOverrideTitle;
+	gui::TextInput addServerUuidOverrideInput;
+	gui::Button addServerSelectUuidOverrideButton;
+	gui::Button addServerClearUuidOverrideButton;
+	gui::Text addServerSkinPathOverrideTitle;
+	gui::TextInput addServerSkinPathOverrideInput;
+	gui::Button addServerSelectSkinPathOverrideButton;
+	gui::Button addServerClearSkinPathOverrideButton;
+
 	gui::Button addServerConfirmButton;
 	gui::Button addServerCancelButton;
 
@@ -66,6 +80,17 @@ public:
 	gui::TextInput editServerNameInput;
 	gui::Text editServerAdressTitle;
 	gui::TextInput editServerAdressInput;
+	gui::Text editServerNameOverrideTitle;
+	gui::TextInput editServerNameOverrideInput;
+	gui::Text editServerUuidOverrideTitle;
+	gui::TextInput editServerUuidOverrideInput;
+	gui::Button editServerSelectUuidOverrideButton;
+	gui::Button editServerClearUuidOverrideButton;
+	gui::Text editServerSkinPathOverrideTitle;
+	gui::TextInput editServerSkinPathOverrideInput;
+	gui::Button editServerSelectSkinPathOverrideButton;
+	gui::Button editServerClearSkinPathOverrideButton;
+
 
 	gui::Button editServerConfirmButton;
 	gui::Button editServerCancelButton;
