@@ -39,14 +39,17 @@
     <ClCompile Include="PauseMenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StateServerList.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CreateWorld.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="info.json5" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BetterUI.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="InventorySorter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -57,6 +60,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StateServerList.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

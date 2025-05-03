@@ -83,8 +83,9 @@ void StateWorldSettings::init(StateManager& s)
 		mainTitle.alignX(ALIGN_CENTER_X);
 		mainTitle.alignY(ALIGN_TOP);
 		mainTitle.offsetY( 50);
-		mainTitle.size = 3;
+		mainTitle.size = 4;
 		mainTitle.shadow = true;
+		mainTitle.fancy = true;
 
 		mainUI.window = s.window;
 		mainUI.viewportCallback = viewportCallback;
@@ -175,8 +176,9 @@ void StateWorldSettings::init(StateManager& s)
 		copyTitle.alignX(ALIGN_CENTER_X);
 		copyTitle.alignY(ALIGN_TOP);
 		copyTitle.offsetY(50);
-		copyTitle.size = 3;
+		copyTitle.size = 4;
 		copyTitle.shadow = true;
+		copyTitle.fancy = true;
 
 		copyFolderTitle.setText("Copy Folder Name:");
 		copyFolderTitle.size = 2;
@@ -241,8 +243,9 @@ void StateWorldSettings::init(StateManager& s)
 		copyingTitle.alignX(ALIGN_CENTER_X);
 		copyingTitle.alignY(ALIGN_TOP);
 		copyingTitle.offsetY(50);
-		copyingTitle.size = 3;
+		copyingTitle.size = 4;
 		copyingTitle.shadow = true;
+		copyingTitle.fancy = true;
 
 		copyingLogText.setText("");
 		copyingLogText.shadow = true;
@@ -271,8 +274,9 @@ void StateWorldSettings::init(StateManager& s)
 		deleteTitle.alignX(ALIGN_CENTER_X);
 		deleteTitle.alignY(ALIGN_TOP);
 		deleteTitle.offsetY(50);
-		deleteTitle.size = 3;
+		deleteTitle.size = 4;
 		deleteTitle.shadow = true;
+		deleteTitle.fancy = true;
 
 		deleteNameTitle.size = 2;
 		deleteNameTitle.shadow = true;

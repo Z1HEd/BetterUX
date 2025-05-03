@@ -94,12 +94,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CreateWorld.cpp" />
     <ClCompile Include="GameInterface.cpp" />
     <ClCompile Include="InventoryActions.cpp" />
     <ClCompile Include="InventorySorter.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PauseMenu.cpp" />
     <ClCompile Include="SettingsMenu.cpp" />
+    <ClCompile Include="StateServerList.cpp" />
     <ClCompile Include="StateWorldSettings.cpp" />
     <ClCompile Include="WorldList.cpp" />
   </ItemGroup>
@@ -109,6 +111,7 @@
   <ItemGroup>
     <ClInclude Include="InventoryActions.h" />
     <ClInclude Include="InventorySorter.h" />
+    <ClInclude Include="StateServerList.h" />
     <ClInclude Include="StateWorldSettings.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
