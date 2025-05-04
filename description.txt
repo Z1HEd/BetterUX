@@ -1,11 +1,14 @@
-BetterUX (Better User eXperience) is a mod that improves certain parts of interface and adds useful features to improve gaming experience. All features are client-sided, which means it will work in multiplayer no problem.
-Here is a full list of changes and features:
-- Settings menu completely reorganized: settings divided neatly into categories, list split into two columns, fixed inconsistencies.
-- Added world settings buttons and menu - use it to copy, rename, or delete your worlds - no more messing with game files.
-- World save button - when paused in singleplayer, there will be a button to save the world without exiting it.
-- Health counter - on top of health bar there is now a text representing current health.
-- Inventory sorting- press R to sort your inventory automatically. Supports 4DKeybinds.
-- Hand switching - press F to switch items between your main hand and your offhand. Supports 4DKeybinds.
-- Hotbar switching - hover mouse over an item and use keys 1-8 to put it into respective hotbar slot.
-- Fastcrafting - press ctrl when crafting an item to craft 10 times, shift + ctrl to craft 50 times, and shift to craft all. Specific craft counts are configurable using config.json.
-- Recipe filtering - use a text input on top of recipe list to search for recipes you need.
+BetterUX (Better User eXperience) is client-only mod that improves many things about ui and game controls.
+Main Menu:
+- Settings menu completely reorganized.
+- Added World settings buttons.
+- Added Server list.
+Keybinds and controls:
+- Inventory sorting on R (Supports 4DKeybinds).
+- Hand switching on F (Supports 4DKeybinds).
+- Hotbar switching - press 1-8 keys to switch item with hotbar slot.
+- Fastcrafting - ctrl to craft 10, shift+ctrl to craft 50, shift to craft all. Specific counts can be changed through config.json.
+Game UI:
+- Recipe search field.
+- Health counter on top of health bar.
+- World save button (saves without exiting).
