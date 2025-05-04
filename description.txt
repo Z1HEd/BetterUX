@@ -1,4 +1,4 @@
-BetterUX (Better User eXperience) is client-only mod that improves many things about ui and game controls.
+BetterUX (Better User eXperience) is client-only mod that improves many things about interface and game controls.
 Main Menu:
 - Settings menu completely reorganized.
 - Added World settings buttons.
