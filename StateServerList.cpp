@@ -3,6 +3,8 @@
 #include "fstream"
 #include <GLFW/glfw3native.h>
 
+std::string savedName = "";
+std::string savedSkinPath = "";
 StateServerList StateServerList::instanceObj = StateServerList();
 
 void StateServerList::updateProjection(const glm::ivec2& size)
@@ -134,9 +136,32 @@ void StateServerList::saveServers() {
 	serversFile.close();
 }
 
+// Dont save overriden stuff
+$hook(void, StateSettings, save,__int16 a2) {
+	
+	if (savedSkinPath!="") {
+		StateSkinChooser::instanceObj.skinPath= savedSkinPath;
+		StateSkinChooser::instanceObj.skin.load(StateSkinChooser::instanceObj.skinPath);
+		StateSkinChooser::instanceObj.skinRenderer.skin = &StateSkinChooser::instanceObj.skin;
+		savedSkinPath = "";
+	}
+	original(self,a2);
+}
+
+$hook(void, StateMultiplayer, close,StateManager& s) {
+	if (savedName != "") {
+		self->displayNameInput.setText(savedName);
+		savedName = "";
+	}
+	original(self, s);
+}
+
 // Buttons callbacks
 
 void loadDefaultPlayerSettings() {
+
+	// SKIN
+
 	std::ifstream file("settings.json");
 	if (!file.is_open()) return;
 	
@@ -148,6 +173,9 @@ void loadDefaultPlayerSettings() {
 	StateSkinChooser::instanceObj.skinPath = skin;
 	StateSkinChooser::instanceObj.skin.load(StateSkinChooser::instanceObj.skinPath);
 	StateSkinChooser::instanceObj.skinRenderer.skin = &StateSkinChooser::instanceObj.skin;
+	savedSkinPath = "";
+
+	// PLAYER NAME
 
 	std::ifstream file2("mpSettings.json");
 	if (!file2.is_open()) return;
@@ -156,8 +184,10 @@ void loadDefaultPlayerSettings() {
 	file2.close();
 
 	StateMultiplayer::instanceObj.displayNameInput.setText(jsonFile2["displayName"].get<std::string>());
-
+	savedName = "";
 	
+	// UUID
+
 	std::ifstream file3("uuid.txt");
 	if (!file3.is_open()) return;
 
@@ -188,14 +218,19 @@ void StateServerList::serverButtonCallback(void* user) {
 		uuidFile >> uuid;
 		StateMultiplayer::instanceObj.uuidInput.setText(uuid);
 	}
-	if (info.playerNameOverride != "")
+	if (info.playerNameOverride != "") {
+		savedName = StateMultiplayer::instanceObj.displayNameInput.text;
 		StateMultiplayer::instanceObj.displayNameInput.setText(info.playerNameOverride);
+	}
 	if (info.skinPathOverride != "") {
+		savedSkinPath = StateSkinChooser::instanceObj.skinPath;
 		StateSkinChooser::instanceObj.skinPath = info.skinPathOverride;
 		StateSkinChooser::instanceObj.skin.load(StateSkinChooser::instanceObj.skinPath);
 		StateSkinChooser::instanceObj.skinRenderer.skin = &StateSkinChooser::instanceObj.skin;
 	}
 
+	StateMultiplayer::instanceObj.connectionErrorOkButton.callback =
+		[](void* user) {StateServerList::instanceObj.manager->changeState(&StateServerList::instanceObj);};
 	StateMultiplayer::instanceObj.joinButtonCallback(StateMultiplayer::instanceObj.joinButton.user);
 
 }
@@ -205,8 +240,8 @@ void StateServerList::addServerConfirmCallback(void* user) {
 		StateServerList::instanceObj.addServerAdressInput.text,
 		StateServerList::instanceObj.addServerNameInput.text,
 		StateServerList::instanceObj.addServerNameOverrideInput.text,
-		StateServerList::instanceObj.addServerNameInput.text,
-		StateServerList::instanceObj.addServerAdressInput.text
+		StateServerList::instanceObj.addServerUuidOverrideInput.text,
+		StateServerList::instanceObj.addServerSkinPathOverrideInput.text
 		);
 	StateServerList::instanceObj.saveServers();
 	StateServerList::instanceObj.loadServers();
@@ -269,7 +304,7 @@ std::filesystem::path getUUIDPath()
 	ofn.lpstrFile = szFile;
 	ofn.nMaxFile = MAX_PATH;
 	ofn.nFilterIndex = 1;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_NOCHANGEDIR;
 	if (GetOpenFileNameW(&ofn))
 		return std::filesystem::path(ofn.lpstrFile);
 	return {};
@@ -287,7 +322,7 @@ std::filesystem::path getSkinPath()
 	ofn.lpstrFile = szFile;
 	ofn.nMaxFile = MAX_PATH;
 	ofn.nFilterIndex = 1;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER;
+	ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_NOCHANGEDIR;
 	if (GetOpenFileNameW(&ofn))
 		return std::filesystem::path(ofn.lpstrFile);
 	return {};
@@ -307,10 +342,12 @@ void StateServerList::init(StateManager& s)
 	qr.init();
 
 	StateMultiplayer::instanceObj.init(*StateServerList::instanceObj.manager);
-	StateMultiplayer::instanceObj.connectionErrorOkButton.callback =
-		[](void* user) {StateServerList::instanceObj.manager->changeState(&StateServerList::instanceObj);};
+
+	StateSettings::instanceObj.init(*StateServerList::instanceObj.manager);
 
 	StateSkinChooser::instanceObj.init(*StateServerList::instanceObj.manager);
+
+	loadDefaultPlayerSettings();
 
 	// Main UI
 	{
@@ -555,7 +592,6 @@ void StateServerList::init(StateManager& s)
 
 	// Edit server UI
 	{
-
 		// TITLE
 
 		editServerTitle.setText("Server Settings");
@@ -862,4 +898,29 @@ $hook(void, StateTitleScreen, init, StateManager& s) {
 		StateServerList::instanceObj.manager->pushState(&StateServerList::instanceObj);
 		StateServerList::instanceObj.init(*StateServerList::instanceObj.manager);
 		};
+}
+
+// Dont load skin when loading settings wtf
+bool inGame = false;
+bool isLoadingSettings = false;
+
+$hook(void, StateGame, init, StateManager& s) {
+	inGame = true;
+	original(self, s);
+}
+
+$hook(void, StateGame, init, StateManager& s) {
+	inGame = false;
+	original(self, s);
+}
+
+$hook(void, StateSettings,load, GLFWwindow * window) {
+	isLoadingSettings = true;
+	original(self, window);
+	isLoadingSettings = false;
+}
+
+$hook(bool,StateSkinChooser, loadSkin, const stl::path& p) {
+	if (!isLoadingSettings || !inGame) return original(self, p);
+	return false;
 }

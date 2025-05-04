@@ -233,6 +233,7 @@ $hook(void, StateSettings, render, StateManager& s)
 $hook(void, StateSettings, init, StateManager& s)
 {
 	initializedSettings = false;
+	self->ui.clear();
 	original(self, s);
 }
 
