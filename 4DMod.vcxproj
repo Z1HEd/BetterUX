@@ -95,6 +95,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CreateWorld.cpp" />
+    <ClCompile Include="ErrorHandling.cpp" />
     <ClCompile Include="GameInterface.cpp" />
     <ClCompile Include="InventoryActions.cpp" />
     <ClCompile Include="InventorySorter.cpp" />
