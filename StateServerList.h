@@ -45,7 +45,7 @@ public:
 	gui::Text noServersText;
 	std::vector<gui::Button> serverButtons;
 	std::vector<aui::ImgButton> editServerButtons;
-	std::vector<stl::string> serverAdresses;
+	std::vector<stl::string> serverAddresses;
 	
 	// Add server UI
 
@@ -54,8 +54,8 @@ public:
 
 	gui::Text addServerNameTitle;
 	gui::TextInput addServerNameInput;
-	gui::Text addServerAdressTitle;
-	gui::TextInput addServerAdressInput;
+	gui::Text addServerAddressTitle;
+	gui::TextInput addServerAddressInput;
 
 	gui::Text addServerNameOverrideTitle;
 	gui::TextInput addServerNameOverrideInput;
@@ -78,8 +78,8 @@ public:
 
 	gui::Text editServerNameTitle;
 	gui::TextInput editServerNameInput;
-	gui::Text editServerAdressTitle;
-	gui::TextInput editServerAdressInput;
+	gui::Text editServerAddressTitle;
+	gui::TextInput editServerAddressInput;
 	gui::Text editServerNameOverrideTitle;
 	gui::TextInput editServerNameOverrideInput;
 	gui::Text editServerUuidOverrideTitle;

@@ -237,7 +237,7 @@ void StateServerList::serverButtonCallback(void* user) {
 
 void StateServerList::addServerConfirmCallback(void* user) {
 	StateServerList::instanceObj.servers.emplace_back(
-		StateServerList::instanceObj.addServerAdressInput.text,
+		StateServerList::instanceObj.addServerAddressInput.text,
 		StateServerList::instanceObj.addServerNameInput.text,
 		StateServerList::instanceObj.addServerNameOverrideInput.text,
 		StateServerList::instanceObj.addServerUuidOverrideInput.text,
@@ -252,7 +252,7 @@ void StateServerList::addServerConfirmCallback(void* user) {
 }
 
 void StateServerList::editServerConfirmCallback(void* user) {
-	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].address = ((StateServerList*)user)->editServerAdressInput.text;
+	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].address = ((StateServerList*)user)->editServerAddressInput.text;
 	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].displayedName = ((StateServerList*)user)->editServerNameInput.text;
 	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].playerNameOverride = ((StateServerList*)user)->editServerNameOverrideInput.text;
 	((StateServerList*)user)->servers[((StateServerList*)user)->editedServerIndex].uuidOverride = ((StateServerList*)user)->editServerUuidOverrideInput.text;
@@ -276,7 +276,7 @@ void StateServerList::editServerRemoveCallback(void* user) {
 }
 
 void StateServerList::editServerCallback(void* user) {
-	StateServerList::instanceObj.editServerAdressInput.setText( StateServerList::instanceObj.servers[(int)user].address);
+	StateServerList::instanceObj.editServerAddressInput.setText( StateServerList::instanceObj.servers[(int)user].address);
 	StateServerList::instanceObj.editServerNameInput.setText(StateServerList::instanceObj.servers[(int)user].displayedName);
 	StateServerList::instanceObj.editServerNameOverrideInput.setText(StateServerList::instanceObj.servers[(int)user].playerNameOverride);
 	StateServerList::instanceObj.editServerUuidOverrideInput.setText(StateServerList::instanceObj.servers[(int)user].uuidOverride);
@@ -442,19 +442,19 @@ void StateServerList::init(StateManager& s)
 
 		// SERVER ADDRESS INPUT
 
-		addServerAdressTitle.setText("Adress:");
-		addServerAdressTitle.alignX(ALIGN_CENTER_X);
-		addServerAdressTitle.alignY(ALIGN_TOP);
-		addServerAdressTitle.offsetX(-250);
-		addServerAdressTitle.offsetY(300);
-		addServerAdressTitle.size = 2;
-		addServerAdressTitle.shadow = true;
+		addServerAddressTitle.setText("Address:");
+		addServerAddressTitle.alignX(ALIGN_CENTER_X);
+		addServerAddressTitle.alignY(ALIGN_TOP);
+		addServerAddressTitle.offsetX(-250);
+		addServerAddressTitle.offsetY(300);
+		addServerAddressTitle.size = 2;
+		addServerAddressTitle.shadow = true;
 
-		addServerAdressInput.width = 300;
-		addServerAdressInput.alignX(ALIGN_CENTER_X);
-		addServerAdressInput.alignY(ALIGN_TOP);
-		addServerAdressInput.offsetX(-250);
-		addServerAdressInput.offsetY(350);
+		addServerAddressInput.width = 300;
+		addServerAddressInput.alignX(ALIGN_CENTER_X);
+		addServerAddressInput.alignY(ALIGN_TOP);
+		addServerAddressInput.offsetX(-250);
+		addServerAddressInput.offsetY(350);
 
 		// PLAYER UUID OVERRIDE
 	
@@ -562,8 +562,8 @@ void StateServerList::init(StateManager& s)
 		// FINISH UP
 
 		addServerUI.addElement(&addServerTitle);
-		addServerUI.addElement(&addServerAdressTitle);
-		addServerUI.addElement(&addServerAdressInput);
+		addServerUI.addElement(&addServerAddressTitle);
+		addServerUI.addElement(&addServerAddressInput);
 		addServerUI.addElement(&addServerNameTitle);
 		addServerUI.addElement(&addServerNameInput);
 		addServerUI.addElement(&addServerCancelButton);
@@ -620,19 +620,19 @@ void StateServerList::init(StateManager& s)
 
 		// SERVER ADDRESS
 
-		editServerAdressTitle.setText("Adress:");
-		editServerAdressTitle.alignX(ALIGN_CENTER_X);
-		editServerAdressTitle.alignY(ALIGN_TOP);
-		editServerAdressTitle.offsetX(-250);
-		editServerAdressTitle.offsetY(300);
-		editServerAdressTitle.size = 2;
-		editServerAdressTitle.shadow = true;
+		editServerAddressTitle.setText("Address:");
+		editServerAddressTitle.alignX(ALIGN_CENTER_X);
+		editServerAddressTitle.alignY(ALIGN_TOP);
+		editServerAddressTitle.offsetX(-250);
+		editServerAddressTitle.offsetY(300);
+		editServerAddressTitle.size = 2;
+		editServerAddressTitle.shadow = true;
 
-		editServerAdressInput.width = 300;
-		editServerAdressInput.alignX(ALIGN_CENTER_X);
-		editServerAdressInput.alignY(ALIGN_TOP);
-		editServerAdressInput.offsetX(-250);
-		editServerAdressInput.offsetY(350);
+		editServerAddressInput.width = 300;
+		editServerAddressInput.alignX(ALIGN_CENTER_X);
+		editServerAddressInput.alignY(ALIGN_TOP);
+		editServerAddressInput.offsetX(-250);
+		editServerAddressInput.offsetY(350);
 
 		// PLAYER UUID OVERRIDE
 
@@ -747,8 +747,8 @@ void StateServerList::init(StateManager& s)
 		editServerRemoveButton.alignX(ALIGN_CENTER_X);
 
 		editServerUI.addElement(&editServerTitle);
-		editServerUI.addElement(&editServerAdressTitle);
-		editServerUI.addElement(&editServerAdressInput);
+		editServerUI.addElement(&editServerAddressTitle);
+		editServerUI.addElement(&editServerAddressInput);
 		editServerUI.addElement(&editServerNameTitle);
 		editServerUI.addElement(&editServerNameInput);
 		editServerUI.addElement(&editServerCancelButton);
