@@ -48,6 +48,9 @@
     <ClCompile Include="ErrorHandling.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="StateWorldError.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="info.json5" />
@@ -66,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="StateServerList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StateWorldError.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
