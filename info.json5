@@ -3,7 +3,7 @@
   name: "BetterUX",
   author: "ZiHEd",
   descriptionFile: "description.txt",
-  version: "1.4",
+  version: "1.4.1",
   gameVersion: "0.2.1.4",
   modDLL: "4DMod.dll",
   externalDLLs: [
