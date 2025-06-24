@@ -30,36 +30,6 @@ inline static gui::Text* getTextElement(gui::Element* element) {
 	return nullptr;
 }
 
-inline static int getY(gui::Element* element)
-{
-	// im comparing typeid name strings instead of using dynamic_cast because typeids of 4dminer and typeids of 4dm.h are different
-	if (0 == strcmp(typeid(*element).name(), "class gui::Button"))
-		return ((gui::Button*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class gui::CheckBox"))
-		return ((gui::CheckBox*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class gui::Image"))
-		return ((gui::Image*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class gui::Slider"))
-		return ((gui::Slider*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class gui::Text"))
-		return ((gui::Text*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class gui::TextInput"))
-		return ((gui::TextInput*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::Button"))
-		return ((gui::Button*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::CheckBox"))
-		return ((gui::CheckBox*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::Image"))
-		return ((gui::Image*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::Slider"))
-		return ((gui::Slider*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::Text"))
-		return ((gui::Text*)element)->yOffset;
-	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::TextInput"))
-		return ((gui::TextInput*)element)->yOffset;
-	return 0;
-}
-
 inline static std::string getText(gui::Element* element)
 {
 	// im comparing typeid name strings instead of using dynamic_cast because typeids of 4dminer and typeids of 4dm.h are different
@@ -88,10 +58,6 @@ inline static std::string getText(gui::Element* element)
 	else if (0 == strcmp(typeid(*element).name(), "class fdm::gui::TextInput"))
 		return ((gui::TextInput*)element)->text;
 	return "Unknown element";
-}
-
-bool compareY(gui::Element* a, gui::Element* b) {
-	return getY(a) < getY(b);
 }
 
 static void putIntoCategory(gui::Element* e) {
@@ -158,8 +124,6 @@ $hook(void, StateSettings, render, StateManager& s)
 
 	utils::setTextHeaderStyle(&self->settingsTitleText, 1); // main title must be big
 	self->settingsTitleText.offsetY(32); // and centered
-
-	std::sort(self->mainContentBox.elements.begin(), self->mainContentBox.elements.end(), compareY);
 
 	categoryContainer.clear();
 	categoryContainer.maxColumns = 2;
