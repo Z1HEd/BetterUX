@@ -6,7 +6,6 @@
 using namespace fdm;
 
 static std::mutex chunkQueueMutex;
-static std::mutex printMutex;
 
 $hook(bool, WorldTitleScreen, loadCube, const glm::vec4& pos, uint8_t _distance) {
     // distance is unused in the original code, it is also probably undefined
@@ -20,15 +19,16 @@ $hook(bool, WorldTitleScreen, loadCube, const glm::vec4& pos, uint8_t _distance)
 
     std::vector<glm::ivec3> coords;
     coords.reserve((2 * R + 1) * (2 * R + 1) * (2 * R + 1)); // overalocate a bit
-    for (int z = cz - R; z <= cz + R; ++z)
-        for (int w = cw - R; w <= cw + R; ++w)
-            for (int x = cx - R; x <= cx + R; ++x) {
+
+    for (int x = cx - R; x <= cx + R; ++x)
+        for (int z = cz - R; z <= cz + R; ++z)
+            for (int w = cw - R; w <= cw + R; ++w) {
                 // Spherical area 
                 if (glm::dot(glm::vec3{ cx,cz,cw } - glm::vec3{ x,z,w },
-                    glm::vec3{ cx,cz,cw } - glm::vec3{ x, z, w }) > 
-                    titleScreenWorldRenderDistance * titleScreenWorldRenderDistance) 
+                    glm::vec3{ cx,cz,cw } - glm::vec3{ x, z, w }) >
+                    titleScreenWorldRenderDistance * titleScreenWorldRenderDistance)
                     continue;
-                coords.emplace_back(x, w, z);
+                coords.emplace_back(x, z, w);
             }
 
     if (coords.empty()) {
@@ -48,6 +48,7 @@ $hook(bool, WorldTitleScreen, loadCube, const glm::vec4& pos, uint8_t _distance)
     for (unsigned t = 0; t < nThreads; ++t) {
         size_t start = t * perThread;
         size_t end = std::min(start + perThread, total);
+        if (end <= start)continue;
         allocThreads.emplace_back([&, t, start, end]() {
             auto& lc = localChunks[t];
             auto& lp = localPtrs[t];
@@ -93,10 +94,6 @@ $hook(void, WorldTitleScreen, loadChunks) {
         return;
     }
 
-    bool smoothLt = self->smoothLighting._Storage._Value;
-    bool shadows = self->shadows._Storage._Value;
-    bool lights = self->lights._Storage._Value;
-
     unsigned nThreads = std::max(1u, std::thread::hardware_concurrency());
 
     // Load chunks
@@ -110,7 +107,7 @@ $hook(void, WorldTitleScreen, loadChunks) {
                 while (true) {
                     size_t i = nextIdx.fetch_add(1, std::memory_order_relaxed);
                     if (i >= total) break;
-                    self->loadChunk(work[i], shadows);
+                    self->loadChunk(work[i], self->shadows);
                 }
                 });
         }
@@ -130,7 +127,7 @@ $hook(void, WorldTitleScreen, loadChunks) {
                     if (i >= total) break;
                     Chunk* chunk = work[i];
                     if (chunk->loaded._Storage._Value) {
-                        self->generateMesh(chunk, smoothLt, shadows, lights);
+                        self->generateMesh(chunk, self->smoothLighting, self->shadows, self->lights);
                     }
                 }
                 });
@@ -140,7 +137,7 @@ $hook(void, WorldTitleScreen, loadChunks) {
 
     // Update cache
     for (Chunk* chunk : work) {
-        self->updateChunkCache(chunk, smoothLt, shadows);
+        self->updateChunkCache(chunk, self->smoothLighting, self->shadows);
     }
 
     self->chunksReady = true;

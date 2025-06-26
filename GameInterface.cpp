@@ -304,6 +304,40 @@ void swapHands(GLFWwindow* window, int action, int mods) {
 		0, &StateGame::instanceObj.player.hotbar);
 }
 
+void hotbarCycleLeft(GLFWwindow* window, int action, int mods) {
+	if (action != GLFW_PRESS) return;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
+	
+	Player& player = StateGame::instanceObj.player;
+
+	for (int i = 0;i < 8;i++) {
+		for (int j = 3;j > -1;j--) {
+			InventoryActions::cursorTransfer(manager, &player.inventory, j * 8 + i, &player.hotbar);
+		}
+		InventoryActions::cursorTransfer(manager, &player.hotbar, i, &player.inventory);
+		InventoryActions::cursorTransfer(manager, &player.inventory, i+24, &player.hotbar);
+	}
+	
+}
+
+void hotbarCycleRight(GLFWwindow* window, int action, int mods) {
+	if (action != GLFW_PRESS) return;
+
+	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
+
+	Player& player = StateGame::instanceObj.player;
+
+	for (int i = 0;i < 8;i++) {
+		for (int j = 0;j < 4;j++) {
+			InventoryActions::cursorTransfer(manager, &player.inventory, j * 8 + i, &player.hotbar);
+		}
+		InventoryActions::cursorTransfer(manager, &player.hotbar, i, &player.inventory);
+		InventoryActions::cursorTransfer(manager, &player.inventory, i, &player.hotbar);
+	}
+
+}
+
 void findAndSwap(Player* player,std::string name,Inventory* destinationInventory,int destinationIndex) {
 	if (destinationInventory->getSlot(destinationIndex) && 
 		destinationInventory->getSlot(destinationIndex)->getName() == name)
@@ -356,6 +390,10 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 			sortInventory(window, action, mods);
 		if (key == GLFW_KEY_F)
 			swapHands(window, action, mods);
+		if (key == GLFW_KEY_Z)
+			hotbarCycleLeft(window, action, mods);
+		if (key == GLFW_KEY_X)
+			hotbarCycleRight(window, action, mods);
 	}
 	return original(self, window, world, key, scancode, action, mods);
 }
@@ -363,6 +401,8 @@ $exec
 {
 	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
+	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Z, KeyBindsScope::PLAYER, hotbarCycleLeft);
+	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::X, KeyBindsScope::PLAYER, hotbarCycleRight);
 }
 
 // Passing inputs into UI
