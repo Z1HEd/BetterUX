@@ -66,8 +66,6 @@ $hook(void, StateIntro, init, StateManager& s)
 
 	titleScreenWorldRenderDistance = configJson["TitleScreenWorldRenderDistance"];
 
-	Console::printLine("Read:", titleScreenWorldRenderDistance);
-
 	shiftCraftCount = configJson["ShiftCraftCount"];
 	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
 	ctrlCraftCount = configJson["CtrlCraftCount"];

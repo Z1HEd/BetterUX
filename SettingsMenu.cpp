@@ -115,6 +115,9 @@ static void putIntoCategory(gui::Element* e) {
 //Add custom settings 
 $hook(void, StateSettings, render, StateManager& s)
 {
+	self->secretButton.offsetY(categoryContainer.height + 500);
+	self->mainContentBox.scrollH = categoryContainer.height + 600 - self->mainContentBox.height;
+
 	original(self, s);
 	if (initializedSettings)
 		return;
@@ -180,6 +183,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	self->mainContentBox.addElement(&categoryContainer);
 	self->mainContentBox.addElement(&self->secretButton); // Fiiiine you may live
 
+
 	categoryContainer.addElement(&modLoaderOptionsContainer);
 	categoryContainer.addElement(&graphicsContainer);
 	categoryContainer.addElement(&audioContainer);
@@ -189,9 +193,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	categoryContainer.addElement(&betterUXContainer);
 
 	categoryContainer.addElement(&otherContainer);
-
 	initializedSettings = true;
-
 }
 
 $hook(void, StateSettings, init, StateManager& s)
