@@ -326,7 +326,6 @@ $hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void*
 	return original(recipeIndex, user);
 }
 
-
 // Keybinds
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
@@ -345,12 +344,79 @@ void swapHands(GLFWwindow* window, int action, int mods) {
 
 	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
 
-	InventoryActions::swapIndex(manager,
-		&StateGame::instanceObj.player.equipment,
-		&StateGame::instanceObj.player.hotbar,
-		0,
-		StateGame::instanceObj.player.hotbar.selectedIndex, &StateGame::instanceObj.player.hotbar);
+	if (!manager->isOpen()) {
+		InventoryActions::swapIndex(manager,
+			&StateGame::instanceObj.player.equipment,
+			&StateGame::instanceObj.player.hotbar,
+			0,
+			StateGame::instanceObj.player.hotbar.selectedIndex, &StateGame::instanceObj.player.hotbar);
+		return;
+	}
 
+	double x, y; 
+	glfwGetCursorPos(window, &x, &y);
+
+	int index;
+	Inventory* inventory = manager->primary;
+	index = manager->primary->getSlotIndex({ x,y });
+
+	if (index == -1) {
+		index = manager->secondary->getSlotIndex({ x,y });
+		inventory = manager->secondary;
+	}
+	if (index == -1)
+		return;
+	if (&inventory->getSlot(index) == &StateGame::instanceObj.player.equipment.getSlot(0))
+		return;
+	InventoryActions::swapIndex(manager,
+		inventory,
+		&StateGame::instanceObj.player.equipment,
+		index,
+		0, &StateGame::instanceObj.player.hotbar);
+}
+
+void findAndSwap(Player* player,std::string name,Inventory* destinationInventory,int destinationIndex) {
+	if (destinationInventory->getSlot(destinationIndex) && 
+		destinationInventory->getSlot(destinationIndex)->getName() == name)
+		return;
+
+	int slotIndex = 0;
+	Inventory* inventory = &player->equipment;
+
+	
+	if (!inventory->getSlot(slotIndex) || inventory->getSlot(slotIndex)->getName() != name)
+		for (int i = 0;i < player->hotbar.getSlotCount();i++) {
+			if (player->hotbar.getSlot(i) && player->hotbar.getSlot(i)->getName() == name) {
+				slotIndex = i;
+				inventory = &player->hotbar;
+				break;
+			}
+		}
+
+	if (!inventory->getSlot(slotIndex) || inventory->getSlot(slotIndex)->getName() != name)
+		for (int i = 0;i < player->inventory.getSlotCount();i++) {
+			if (player->inventory.getSlot(i) && player->inventory.getSlot(i)->getName() == name) {
+				slotIndex = i;
+				inventory = &player->inventory;
+				break;
+			}
+		}
+
+	if (inventory->getSlot(slotIndex) && inventory->getSlot(slotIndex)->getName() == name)
+		InventoryActions::swapIndex(&player->inventoryManager,
+			destinationInventory,
+			inventory,
+			destinationIndex,
+			slotIndex, &player->hotbar);
+}
+
+void pickBlock(StateGame* s) {
+	if (!s->player.targetingBlock)
+		return;
+	uint8_t targetBlock = s->world->getBlock(s->player.targetBlock);
+	std::string targetBlockName = BlockInfo::blockNames[targetBlock];
+
+	findAndSwap(&s->player, targetBlockName, &s->player.hotbar, s->player.hotbar.selectedIndex);
 }
 
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
@@ -411,9 +477,17 @@ $hook(void, StateGame, mouseInput, StateManager& s, double xpos, double ypos)
 }
 $hook(void, StateGame, mouseButtonInput, StateManager& s, int button, int action, int mods)
 {
-	if (!self->player.inventoryManager.isOpen() || !ui.mouseButtonInput(button, action, mods))
-		original(self, s, button, action, mods);
-	//updateFilteredCrafts(&self->player);
+	// Block picking
+	if (!self->player.inventoryManager.isOpen() &&
+		button == GLFW_MOUSE_BUTTON_MIDDLE &&
+		action == GLFW_PRESS)
+		return pickBlock(self);
+
+	// UI input
+	if (self->player.inventoryManager.isOpen() && !ui.mouseButtonInput(button, action, mods))
+		return original(self, s, button, action, mods);
+
+	return original(self, s, button, action, mods);
 }
 $hook(void, StateGame, scrollInput, StateManager& s, double xoffset, double yoffset)
 {
