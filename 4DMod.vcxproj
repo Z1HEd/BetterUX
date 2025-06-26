@@ -94,6 +94,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Config.cpp" />
     <ClCompile Include="CreateWorld.cpp" />
     <ClCompile Include="ErrorHandling.cpp" />
     <ClCompile Include="GameInterface.cpp" />
@@ -105,12 +106,14 @@
     <ClCompile Include="StateServerList.cpp" />
     <ClCompile Include="StateWorldError.cpp" />
     <ClCompile Include="StateWorldSettings.cpp" />
+    <ClCompile Include="TitleScreen.cpp" />
     <ClCompile Include="WorldList.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="info.json5" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Config.h" />
     <ClInclude Include="InventoryActions.h" />
     <ClInclude Include="InventorySorter.h" />
     <ClInclude Include="StateServerList.h" />

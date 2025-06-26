@@ -4,7 +4,7 @@
 #include "InventoryActions.h"
 #include "InventorySorter.h"
 #include "4DKeyBinds.h"
-#include <fstream>
+#include "Config.h"
 
 QuadRenderer qr{};
 FontRenderer font{};
@@ -12,80 +12,9 @@ gui::Interface ui;
 gui::Text healthText;
 gui::TextInput craftSearchInput;
 
-
 bool shiftHeldDown = false;
 bool ctrlHeldDown = false;
 
-unsigned int ctrlShiftCraftCount = 50;
-unsigned int ctrlCraftCount = 10;
-unsigned int shiftCraftCount = 4096;
-
-std::string configPath;
-
-void updateConfig(const std::string& path, const nlohmann::json& j)
-{
-	std::ofstream configFileO(path);
-	if (configFileO.is_open())
-	{
-		configFileO << j.dump(4);
-		configFileO.close();
-	}
-}
-
-// Read config
-$hook(void, StateIntro, init, StateManager& s)
-{
-	original(self, s);
-
-	// initialize opengl stuff
-	glewExperimental = true;
-	glewInit();
-	glfwInit();
-
-	configPath = std::format("{}/config.json", fdm::getModPath(fdm::modID));
-
-	nlohmann::json configJson
-	{
-		{ "ShiftCraftCount", shiftCraftCount},
-		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
-		{ "CtrlCraftCount", ctrlCraftCount}
-	};
-
-	if (!std::filesystem::exists(configPath))
-	{
-		updateConfig(configPath, configJson);
-	}
-	else
-	{
-		std::ifstream configFileI(configPath);
-		if (configFileI.is_open())
-		{
-			configJson = nlohmann::json::parse(configFileI);
-			configFileI.close();
-		}
-	}
-
-
-	if (!configJson.contains("ShiftCraftCount"))
-	{
-		configJson["ShiftCraftCount"] = shiftCraftCount;
-		updateConfig(configPath, configJson);
-	}
-	if (!configJson.contains("CtrlShiftCraftCount"))
-	{
-		configJson["CtrlShiftCraftCount"] = ctrlShiftCraftCount;
-		updateConfig(configPath, configJson);
-	}
-	if (!configJson.contains("CtrlCraftCount"))
-	{
-		configJson["CtrlCraftCount"] = ctrlCraftCount;
-		updateConfig(configPath, configJson);
-	}
-
-	shiftCraftCount = configJson["ShiftCraftCount"];
-	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
-	ctrlCraftCount = configJson["CtrlCraftCount"];
-}
 //Initialize stuff when entering world
 
 void viewportCallback(void* user, const glm::ivec4& pos, const glm::ivec2& scroll)
