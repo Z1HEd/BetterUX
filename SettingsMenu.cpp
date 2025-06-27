@@ -1,6 +1,7 @@
 #include <4dm.h>
 #include "auilib/auilib.h"
 #include "utils.h"
+#include "Config.h"
 
 static bool initializedSettings = false;
 
@@ -20,6 +21,10 @@ gui::Text graphicsText;
 gui::Text gameplayText;
 
 gui::Text betterUXText;
+gui::CheckBox popupsEnabledCheckbox;
+gui::Slider popupLifeTimeSlider;
+gui::Slider popupFadeSlider;
+gui::Slider popupMoveSpeedSlider;
 
 
 inline static gui::Text* getTextElement(gui::Element* element) {
@@ -173,6 +178,61 @@ $hook(void, StateSettings, render, StateManager& s)
 	gameplayText.setText("Gameplay");
 	gameplayContainer.addElement(&gameplayText);
 
+	utils::setTextHeaderStyle(&betterUXText, 2);
+	betterUXText.setText("BetterUX");
+	betterUXContainer.addElement(&betterUXText);
+
+	popupsEnabledCheckbox.checked = popupsEnabled;
+	popupsEnabledCheckbox.alignX(ALIGN_CENTER_X);
+	popupsEnabledCheckbox.alignY(ALIGN_TOP);
+	popupsEnabledCheckbox.setText(popupsEnabled ? "Popups Enabled" : "Popups Disabled");
+
+	popupsEnabledCheckbox.callback = [](void* user, bool value) {
+		popupsEnabled = value;
+		popupsEnabledCheckbox.setText(popupsEnabled? "Popups Enabled" : "Popups Disabled");
+		};
+
+
+	popupLifeTimeSlider.alignX(ALIGN_CENTER_X);
+	popupLifeTimeSlider.alignY(ALIGN_TOP);
+	popupFadeSlider.alignX(ALIGN_CENTER_X);
+	popupFadeSlider.alignY(ALIGN_TOP);
+	popupMoveSpeedSlider.alignX(ALIGN_CENTER_X);
+	popupMoveSpeedSlider.alignY(ALIGN_TOP);
+
+	popupLifeTimeSlider.width = popupFadeSlider.width = popupMoveSpeedSlider.width = 500;
+
+	popupLifeTimeSlider.range = 19;
+	popupFadeSlider.range = 9;
+	popupMoveSpeedSlider.range = 9;
+
+	popupLifeTimeSlider.value = popupLifeTime*2-1;
+	popupFadeSlider.value = popupFadeTime * 5 - 1;
+	popupMoveSpeedSlider.value = popupMoveSpeed * 10 - 1;
+
+	popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
+	popupFadeSlider.setText(std::format("Popup Fade Duration: {:.1f}", popupFadeTime));
+	popupMoveSpeedSlider.setText(std::format("Popup Speed: {:.1f}", popupMoveSpeed));
+
+	popupLifeTimeSlider.callback = [](void* user, int value) {
+		popupLifeTime = (double)value / 2 + 0.5;
+		popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
+		};
+	popupFadeSlider.callback = [](void* user, int value) {
+		popupFadeTime = (double)value / 5 + 0.2;
+		popupFadeSlider.setText(std::format("Popup Fade Duration: {:.1f}", popupFadeTime));
+		};
+	popupMoveSpeedSlider.callback = [](void* user, int value) {
+		popupMoveSpeed = (double)value / 10 + 0.1;
+		popupMoveSpeedSlider.setText(std::format("Popup Speed: {:.1f}", popupMoveSpeed));
+		};
+
+
+	betterUXContainer.addElement(&popupsEnabledCheckbox);
+	betterUXContainer.addElement(&popupLifeTimeSlider);
+	betterUXContainer.addElement(&popupFadeSlider);
+	betterUXContainer.addElement(&popupMoveSpeedSlider);
+
 	for (auto& e : self->mainContentBox.elements)
 	{
 		// Hmmm where should i put my favourite button?
@@ -189,6 +249,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	self->mainContentBox.clear();
 	self->mainContentBox.addElement(&categoryContainer);
 	self->mainContentBox.addElement(&self->secretButton); // Fiiiine you may live
+
 
 
 	categoryContainer.addElement(&modLoaderOptionsContainer);

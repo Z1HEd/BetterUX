@@ -12,6 +12,99 @@ gui::Interface ui;
 gui::Text healthText;
 gui::TextInput craftSearchInput;
 
+
+
+class Popup : public gui::Text{
+public:
+
+	double tempPosition; // yOffset is int, it fails with slower movements
+	int targetYOffset;
+	double updateTime;
+
+	bool isFadingOut = false;
+	double fadeOutBeginTime = 0;
+
+	bool isGone = false;
+
+	std::string name;
+	int count;
+	bool isDeadly = false;
+
+	Popup() : Text::Text(), updateTime(glfwGetTime()) { 
+		size = 2; 
+		offsetX(-15);
+		alignY(ALIGN_BOTTOM); 
+		alignX(ALIGN_RIGHT); 
+	}
+	Popup(std::string Name, int Count, bool IsDeadly) : 
+		Text::Text(), name(Name), count(Count),isDeadly(IsDeadly), updateTime(glfwGetTime()) {
+		size = 2; 
+		offsetX(-15);
+		alignY(ALIGN_BOTTOM); 
+		alignX(ALIGN_RIGHT); 
+	}
+
+	void render(gui::Window* w) override {
+		
+		if (isGone) return;
+
+		double time = glfwGetTime();
+
+		if (!isFadingOut && time - updateTime > popupLifeTime) {
+			isFadingOut = true;
+			fadeOutBeginTime = time;
+		}
+
+		if (isFadingOut && time - fadeOutBeginTime > popupFadeTime) {
+			isGone = true;
+			return;
+		}
+		double towardsTarget = targetYOffset- yOffset ;
+
+		if (std::abs(towardsTarget) > 0.01) {
+
+			double step = std::copysign(
+				std::min(popupMoveSpeed, std::abs(towardsTarget)),
+				towardsTarget);
+
+			tempPosition += step;
+			yOffset = tempPosition;
+		}
+		text = std::format("{} x{}", name, count);
+
+		if (isDeadly) {// Deadly item effect
+
+			glm::vec2 offset1 = glm::diskRand(5.0);
+			glm::vec2 offset2 = glm::diskRand(5.0);
+
+			int savedX = xOffset, savedY = yOffset;
+
+			color = { 1,0,1,color.a * 0.7 };
+			offsetX(savedX + offset1.x);
+			offsetY(savedY + offset1.y);
+			Text::render(w);
+
+			color = { 0,1,1,color.a };
+			offsetX(savedX + offset2.x);
+			offsetY(savedY + offset2.y);
+			Text::render(w);
+
+			offsetX(savedX);
+			offsetY(savedY);
+		}
+		color.a = isFadingOut ? 1 - (time - fadeOutBeginTime) / popupFadeTime : 1;
+		color = { 1,1,1,color.a };
+		Text::render(w);
+		
+	}
+
+	void update() {
+		updateTime = glfwGetTime(); isFadingOut = false;
+	}
+};
+
+std::vector<Popup> popups{};
+
 bool shiftHeldDown = false;
 bool ctrlHeldDown = false;
 
@@ -89,7 +182,45 @@ $hook(void, StateGame, windowResize, StateManager& s, GLsizei width, GLsizei hei
 	viewportCallback(s.window, { 0,0, width, height }, { 0,0 });
 }
 
-//Render UI
+// Item popups
+
+void updatePopupPositions() {
+	for (int i = 0;i < popups.size();i++) {
+		popups[i].targetYOffset = -i * 20 - 10;
+	}
+}
+
+void itemCollected(Item* item) {
+	if (!popupsEnabled) return;
+	auto it = std::find_if(popups.begin(), popups.end(), [&](Popup& is) {return is.name == item->getName();});
+	if (popups.size() && it != popups.end()) {
+		it->count += item->count;
+		it->update();
+	}
+	else {
+		popups.emplace(popups.begin(), item->getName(), item->count, item->isDeadly());
+		popups.begin()->tempPosition = 20;
+	}
+	updatePopupPositions();
+}
+
+$hook(void, WorldSingleplayer, localPlayerEvent, Player* player, Packet::ClientPacket eventType, int64_t eventValue, void* data) {
+	if (eventType == Packet::C_ITEM_COLLECT) {
+		itemCollected(((EntityItem*)data)->item.get());
+	}
+	original(self, player, eventType, eventValue, data);
+}
+
+$hook(bool, WorldClient, handleWorldMessage, const Connection::InMessage& message, Player* player) {
+	if ((Packet::ServerPacket)message.getPacketType() == Packet::S_ITEM_COLLECT) {
+		nlohmann::json item = nlohmann::json::parse(message.getStrData());
+		itemCollected(Item::createFromJson(item).get());
+	}
+	return original(self, message, player);
+}
+
+
+// Render UI
 
 $hook(void, Player, renderHud, GLFWwindow* window) {
 	original(self, window);
@@ -101,7 +232,7 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 
 
 	static glm::vec4 textColor;
-	if (self->health > 70) textColor = { .5,1,.5,1 }; //light green if high health
+	if (self->health > 70) textColor = { .5,1,.5,1 }; // light green if high health
 	else if (self->health > 30) textColor = { 1,0.64f,0,1 }; // orange if half health
 	else textColor = { 1,0.1f,0.1f,1 }; // red if low health
 
@@ -135,17 +266,24 @@ $hook(void, Player, renderHud, GLFWwindow* window) {
 	if (self->inventoryManager.isOpen())
 		ui.render();
 
-	glEnable(GL_DEPTH_TEST);
+	// Popups
 
-	CraftingMenu* menu = &self->inventoryManager.craftingMenu;
-	gui::ContentBox* craftingMenuBox = &self->inventoryManager.craftingMenuBox;
-	int x, y;
-	for (int i = 0; i < craftingMenuBox->elements.size();i++) {
-		craftingMenuBox->elements[i]->getPos(craftingMenuBox->parent, &x, &y);
+	int i = 0;
+	int size = popups.size();
+	while (popupsEnabled){
+		if (i >= popups.size()) break;
+		if (popups[i].isGone) popups.erase(popups.begin() + i);
+		else {
+			popups[i].render(&ui);
+			i++;
+		}
 	}
+	if (popups.size() != size) updatePopupPositions();
+
+	glEnable(GL_DEPTH_TEST);
 }
 
-//Recipe filtering
+// Recipe filtering
 
 $hook(void, CraftingMenu, updateAvailableRecipes)
 {

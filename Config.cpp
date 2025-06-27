@@ -26,7 +26,11 @@ $hook(void, StateIntro, init, StateManager& s)
 		{ "TitleScreenWorldRenderDistance", titleScreenWorldRenderDistance},
 		{ "ShiftCraftCount", shiftCraftCount},
 		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
-		{ "CtrlCraftCount", ctrlCraftCount}
+		{ "CtrlCraftCount", ctrlCraftCount},
+		{ "PopupsEnabled", popupsEnabled},
+		{ "PopupLifeTime", popupLifeTime },
+		{ "PopupFadeTime", popupFadeTime},
+		{ "PopupMoveSpeed", popupMoveSpeed},
 	};
 
 	if (!std::filesystem::exists(configPath))
@@ -64,12 +68,37 @@ $hook(void, StateIntro, init, StateManager& s)
 		updateConfig(configPath, configJson);
 	}
 
+	if (!configJson.contains("PopupsEnabled"))
+	{
+		configJson["PopupsEnabled"] = popupsEnabled;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("PopupLifeTime"))
+	{
+		configJson["PopupLifeTime"] = popupLifeTime;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("PopupFadeTime"))
+	{
+		configJson["PopupFadeTime"] = popupFadeTime;
+		updateConfig(configPath, configJson);
+	}
+	if (!configJson.contains("PopupMoveSpeed"))
+	{
+		configJson["PopupMoveSpeed"] = popupMoveSpeed;
+		updateConfig(configPath, configJson);
+	}
+
 	titleScreenWorldRenderDistance = configJson["TitleScreenWorldRenderDistance"];
 
 	shiftCraftCount = configJson["ShiftCraftCount"];
 	ctrlShiftCraftCount = configJson["CtrlShiftCraftCount"];
 	ctrlCraftCount = configJson["CtrlCraftCount"];
 
+	popupsEnabled = configJson["PopupsEnabled"];
+	popupLifeTime = configJson["PopupLifeTime"];
+	popupFadeTime = configJson["PopupFadeTime"];
+	popupMoveSpeed = configJson["PopupMoveSpeed"];
 
 	original(self, s);
 
