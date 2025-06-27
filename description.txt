@@ -1,14 +1,19 @@
 BetterUX (Better User eXperience) is client-only mod that improves many things about interface and game controls.
 Main Menu:
-- Settings menu completely reorganized.
+- Settings menu completely reorganized, fixed window resize bug. Automatically categorizes modded settings.
 - Added World settings buttons.
 - Added Server list.
+- Optimised background world loading, added a setting to change its render distance.
 Keybinds and controls:
 - Inventory sorting on R (Supports 4DKeybinds).
-- Hand switching on F (Supports 4DKeybinds).
+- Offhand switching on F (Supports 4DKeybinds).
 - Hotbar switching - press 1-8 keys to switch item with hotbar slot.
+- Hotbar cycling - Press Z/X (Supports 4DKeybinds) to shift all your inventory columns left/right.
+- Picking blocks - look at a block and press MMB to take this block from your inventory.
+- Whed inventory is open, pressing drop key will drop item below cursor, not in the selected hotbar slot. Hold shift to drop all.
 - Fastcrafting - ctrl to craft 10, shift+ctrl to craft 50, shift to craft all. Specific counts can be changed through config.json.
 Game UI:
 - Recipe search field.
+- Added collected items popups and 4 settings to customize them.
 - Health counter on top of health bar.
 - World save button (saves without exiting).
