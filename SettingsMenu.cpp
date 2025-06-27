@@ -13,7 +13,7 @@ aui::VBoxContainer gameplayContainer;
 aui::VBoxContainer multiplayerContainer;
 aui::VBoxContainer audioContainer;
 aui::VBoxContainer betterUXContainer;
-aui::VBoxContainer otherContainer;
+std::vector<aui::VBoxContainer> otherContainers;
 
 gui::Text controlsText;
 gui::Text graphicsText;
@@ -60,7 +60,7 @@ inline static std::string getText(gui::Element* element)
 	return "Unknown element";
 }
 
-static void putIntoCategory(gui::Element* e) {
+static bool putIntoCategory(gui::Element* e) {
 	std::string elementText = getText(e);
 	// LOADER OPTIONS
 	if ((elementText.find("4DModLoader Options") != std::string::npos) ||
@@ -109,7 +109,14 @@ static void putIntoCategory(gui::Element* e) {
 	{
 		audioContainer.addElement(e);
 	}
-	else otherContainer.addElement(e);
+	else {
+		if (getTextElement(e) && getTextElement(e)->size>2) { // Title, create new category
+			otherContainers.emplace_back();
+			otherContainers[otherContainers.size() - 1].ySpacing = 20;
+			Console::printLine("New category: ", getText(e));
+		}
+		otherContainers[otherContainers.size() - 1].addElement(e);
+	}
 }
 
 //Add custom settings 
@@ -138,7 +145,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	multiplayerContainer.clear();
 	audioContainer.clear();
 	betterUXContainer.clear();
-	otherContainer.clear();
+	otherContainers.clear();
 
 	categoryContainer.ySpacing = 43;
 	categoryContainer.xSpacing = 50;
@@ -150,7 +157,7 @@ $hook(void, StateSettings, render, StateManager& s)
 	multiplayerContainer.ySpacing = 20;
 	audioContainer.ySpacing = 20;
 	betterUXContainer.ySpacing = 20;
-	otherContainer.ySpacing = 20;
+	
 
 	utils::setTextHeaderStyle(&controlsText, 2);
 	controlsText.setText("Controls");
@@ -192,7 +199,8 @@ $hook(void, StateSettings, render, StateManager& s)
 	categoryContainer.addElement(&multiplayerContainer);
 	categoryContainer.addElement(&betterUXContainer);
 
-	categoryContainer.addElement(&otherContainer);
+	for (auto& container : otherContainers)
+		categoryContainer.addElement(&container);
 	initializedSettings = true;
 }
 
