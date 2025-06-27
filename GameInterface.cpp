@@ -476,6 +476,49 @@ void hotbarCycleRight(GLFWwindow* window, int action, int mods) {
 
 }
 
+void dropItemInventory(GLFWwindow* window, int action, int mods) {
+	if (action != GLFW_PRESS) return;
+
+	Player& player = StateGame::instanceObj.player;
+	InventoryManager* manager = &player.inventoryManager;
+	InventoryGrid* hotbar = &player.hotbar;
+
+	double x, y;
+	glfwGetCursorPos(window, &x, &y);
+
+	Inventory* inventory = manager->primary;
+	int index = inventory->getSlotIndex({ x,y });
+
+	if (index == -1) {
+		inventory = manager->secondary;
+		index = inventory->getSlotIndex({ x,y });
+	}
+	
+	if (index == -1) return;
+
+	if (!inventory->getSlot(index)) return;
+
+	if (shiftHeldDown) { // drop all
+		
+		InventoryActions::cursorTransfer(manager, inventory, index, inventory);
+		
+		StateGame::instanceObj.world->localPlayerEvent(&player, Packet::C_ITEM_THROW_CURSOR, 0, nullptr);
+
+		InventoryActions::cursorTransfer(manager, inventory, index, inventory);
+	}
+	else { // drop one
+		if (inventory!=hotbar || index !=hotbar->selectedIndex)
+			InventoryActions::swapIndex(manager, hotbar, inventory, hotbar->selectedIndex, index, inventory);
+
+		StateGame::instanceObj.world->localPlayerEvent(&player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
+
+		if (inventory != hotbar || index != hotbar->selectedIndex)
+			InventoryActions::swapIndex(manager, hotbar, inventory, hotbar->selectedIndex, index, inventory);
+	}
+	
+	
+}
+
 void findAndSwap(Player* player,std::string name,Inventory* destinationInventory,int destinationIndex) {
 	if (destinationInventory->getSlot(destinationIndex) && 
 		destinationInventory->getSlot(destinationIndex)->getName() == name)
@@ -520,6 +563,8 @@ void pickBlock(StateGame* s) {
 	findAndSwap(&s->player, targetBlockName, &s->player.hotbar, s->player.hotbar.selectedIndex);
 }
 
+
+
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
 	if (!KeyBinds::isLoaded())
@@ -533,7 +578,10 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 		if (key == GLFW_KEY_X)
 			hotbarCycleRight(window, action, mods);
 	}
-	return original(self, window, world, key, scancode, action, mods);
+	if (key == GLFW_KEY_Q && self->inventoryManager.isOpen())
+		dropItemInventory(window, action, mods);
+	else
+		return original(self, window, world, key, scancode, action, mods);
 }
 $exec
 {
