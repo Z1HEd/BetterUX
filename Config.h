@@ -1,18 +1,18 @@
 #pragma once
 
-inline unsigned int titleScreenWorldRenderDistance = 5;
+extern uint32_t titleScreenWorldRenderDistance;
 
-inline unsigned int ctrlShiftCraftCount = 50;
-inline unsigned int ctrlCraftCount = 10;
-inline unsigned int shiftCraftCount = 4096;
+extern uint32_t ctrlShiftCraftCount;
+extern uint32_t ctrlCraftCount;
+extern uint32_t shiftCraftCount;
 
-inline bool popupsEnabled = true;
+extern bool popupsEnabled;
 
-inline double popupLifeTime = 3;
-inline double popupFadeTime = 1;
-inline double popupMoveSpeed = .015;
+extern double popupLifeTime;
+extern double popupFadeTime;
+extern double popupMoveSpeed;
 
-inline std::string configPath;
+extern std::string configPath;
 
 nlohmann::json getConfigJson();
 

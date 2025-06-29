@@ -13,12 +13,11 @@ gui::Interface ui;
 gui::Text healthText;
 gui::TextInput craftSearchInput;
 
+class Popup : public gui::Text
+{
+	double lastTime = -1;
 
-
-class Popup : public gui::Text{
 public:
-
-	double tempPosition; // yOffset is int, it fails with slower movements
 	int targetYOffset;
 	double updateTime;
 
@@ -31,27 +30,32 @@ public:
 	int count;
 	bool isDeadly = false;
 
-	Popup() : Text::Text(), updateTime(glfwGetTime()) { 
-		size = 2; 
+	Popup() : Text::Text(), updateTime(glfwGetTime()) {
+		size = 2;
 		offsetX(-15);
-		alignY(ALIGN_BOTTOM); 
-		alignX(ALIGN_RIGHT); 
+		alignY(ALIGN_BOTTOM);
+		alignX(ALIGN_RIGHT);
 	}
-	Popup(std::string Name, int Count, bool IsDeadly) : 
-		Text::Text(), name(Name), count(Count),isDeadly(IsDeadly), updateTime(glfwGetTime()) {
-		size = 2; 
+	Popup(std::string Name, int Count, bool IsDeadly) :
+		Text::Text(), name(Name), count(Count), isDeadly(IsDeadly), updateTime(glfwGetTime()) {
+		size = 2;
 		offsetX(-15);
-		alignY(ALIGN_BOTTOM); 
-		alignX(ALIGN_RIGHT); 
+		alignY(ALIGN_BOTTOM);
+		alignX(ALIGN_RIGHT);
 	}
 
 	void render(gui::Window* w) override {
 		
 		if (isGone) return;
 
-		static double lastFrameTime = glfwGetTime();
+		FontRenderer* font = w->getFont();
+		font->centered = false;
+		font->fontSize = size;
+
 		double time = glfwGetTime();
-		double dt = time = lastFrameTime;
+		if (lastTime == -1) lastTime = time - 0.01;
+		double dt = time - lastTime;
+		lastTime = time;
 
 		if (!isFadingOut && time - updateTime > popupLifeTime) {
 			isFadingOut = true;
@@ -63,45 +67,50 @@ public:
 			return;
 		}
 
-		yOffset = utils::ilerp(yOffset, targetYOffset, popupMoveSpeed,dt);
+		printf("speed:%f; dt:%f; yOff:%i; target:%i;\n", popupMoveSpeed, dt, yOffset, targetYOffset);
+		double tempPosition = utils::ilerp(yOffset, targetYOffset, popupMoveSpeed, dt);
+		yOffset = glm::ceil(tempPosition);
 
-		text = std::format("{} x{}", name, count);
+		std::string textF = std::format("{} x{}", name, count);
+		text = textF;
+		font->setText(textF);
+
+		glm::ivec2 pos;
+		getPos(w, &pos.x, &pos.y);
+
+		color.a = isFadingOut ? 1 - (time - fadeOutBeginTime) / popupFadeTime : 1;
+
 		if (isDeadly) {// Deadly item effect
 
 			glm::vec2 offset1 = glm::diskRand(5.0);
 			glm::vec2 offset2 = glm::diskRand(5.0);
 
-			int savedX = xOffset, savedY = yOffset;
 
-			color = { 1,0,1,color.a * 0.7 };
-			offsetX(savedX + offset1.x);
-			offsetY(savedY + offset1.y);
-			Text::render(w);
+			font->color = { 1,0,1,color.a * 0.7 };
+			font->pos = pos + (glm::ivec2)offset1;
+			font->updateModel();
+			font->render();
 
-			color = { 0,1,1,color.a };
-			offsetX(savedX + offset2.x);
-			offsetY(savedY + offset2.y);
-			Text::render(w);
-
-			offsetX(savedX);
-			offsetY(savedY);
-		}
-		color.a = isFadingOut ? 1 - (time - fadeOutBeginTime) / popupFadeTime : 1;
-		auto* renderer = w->getFont();
-
-		int x, y;
-		getPos(w, &x, &y);
-
-		if (!isDeadly) { // shadow
-			renderer->setText(text);
-			renderer->pos = glm::ivec2{x+size,y+size};
-			renderer->color = { 0,0,0,color.a };
-			renderer->updateModel();
-			renderer->render();
+			font->color = { 0,1,1,color.a * 0.7 };
+			font->pos = pos + (glm::ivec2)offset2;
+			font->updateModel();
+			font->render();
 		}
 
-		color = { 1,1,1,color.a };
-		Text::render(w);
+		// shadow
+		if (!isDeadly)
+		{
+			font->pos = pos + glm::ivec2{ size, size };
+			font->color = { 0,0,0,color.a };
+			font->updateModel();
+			font->render();
+		}
+
+		font->pos = pos;
+		font->color = { 1,1,1,color.a };
+
+		font->updateModel();
+		font->render();
 	}
 
 	void update() {
@@ -198,6 +207,7 @@ void updatePopupPositions() {
 
 void itemCollected(Item* item) {
 	if (!popupsEnabled) return;
+	if (!item) return;
 	auto it = std::find_if(popups.begin(), popups.end(), [&](Popup& is) {return is.name == item->getName();});
 	if (popups.size() && it != popups.end()) {
 		it->count += item->count;

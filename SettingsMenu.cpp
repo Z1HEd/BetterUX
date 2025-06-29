@@ -66,7 +66,7 @@ inline static std::string getText(gui::Element* element)
 	return "Unknown element";
 }
 
-static bool putIntoCategory(gui::Element* e) {
+static void putIntoCategory(gui::Element* e) {
 	std::string elementText = getText(e);
 	// LOADER OPTIONS
 	if ((elementText.find("4DModLoader Options") != std::string::npos) ||
@@ -165,21 +165,21 @@ $hook(void, StateSettings, render, StateManager& s)
 	
 
 	utils::setTextHeaderStyle(&controlsText, 2);
-	controlsText.setText("Controls");
+	controlsText.setText("Controls:");
 	controlsContainer.addElement(&controlsText);
 
 
 	utils::setTextHeaderStyle(&graphicsText, 2);
-	graphicsText.setText("Graphics");
+	graphicsText.setText("Graphics:");
 	graphicsContainer.addElement(&graphicsText);
 
 
 	utils::setTextHeaderStyle(&gameplayText, 2);
-	gameplayText.setText("Gameplay");
+	gameplayText.setText("Gameplay:");
 	gameplayContainer.addElement(&gameplayText);
 
 	utils::setTextHeaderStyle(&betterUXText, 2);
-	betterUXText.setText("BetterUX");
+	betterUXText.setText("BetterUX:");
 	betterUXContainer.addElement(&betterUXText);
 
 	popupsEnabledCheckbox.checked = popupsEnabled;
@@ -210,12 +210,12 @@ $hook(void, StateSettings, render, StateManager& s)
 	titleScreenWorldRenderDistanceSlider.range = 16;
 	popupLifeTimeSlider.range = 19;
 	popupFadeSlider.range = 19;
-	popupMoveSpeedSlider.range = 19;
+	popupMoveSpeedSlider.range = 12;
 
 	titleScreenWorldRenderDistanceSlider.value = titleScreenWorldRenderDistance;
-	popupLifeTimeSlider.value = popupLifeTime*2-1;
+	popupLifeTimeSlider.value = popupLifeTime * 2 - 1;
 	popupFadeSlider.value = popupFadeTime * 10 - 1;
-	popupMoveSpeedSlider.value = popupMoveSpeed * 200 - 1;
+	popupMoveSpeedSlider.value = (popupMoveSpeed - 0.1) * 40;
 
 	titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
 	popupLifeTimeSlider.setText(std::format("Lifetime: {:.1f}", popupLifeTime));
@@ -227,18 +227,19 @@ $hook(void, StateSettings, render, StateManager& s)
 		titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
 		saveConfig();
 		};
+
 	popupLifeTimeSlider.callback = [](void* user, int value) {
-		popupLifeTime = (double)value / 2 + 0.5;
+		popupLifeTime = value / 2.0 + 0.5;
 		popupLifeTimeSlider.setText(std::format("Lifetime: {:.1f}", popupLifeTime));
 		saveConfig();
 		};
 	popupFadeSlider.callback = [](void* user, int value) {
-		popupFadeTime = (double)value / 10 + 0.1;
+		popupFadeTime = value / 10.0 + 0.1;
 		popupFadeSlider.setText(std::format("Fade Duration: {:.1f}", popupFadeTime));
 		saveConfig();
 		};
 	popupMoveSpeedSlider.callback = [](void* user, int value) {
-		popupMoveSpeed = (double)value / 200 + 0.005;
+		popupMoveSpeed = value / 40.0 + 0.1;
 		popupMoveSpeedSlider.setText(std::format("Speed: {:.3f}", popupMoveSpeed));
 		saveConfig();
 		};

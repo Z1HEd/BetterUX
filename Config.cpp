@@ -4,6 +4,20 @@
 
 using namespace fdm;
 
+uint32_t titleScreenWorldRenderDistance = 5;
+
+uint32_t ctrlShiftCraftCount = 50;
+uint32_t ctrlCraftCount = 10;
+uint32_t shiftCraftCount = 4096;
+
+bool popupsEnabled = true;
+
+double popupLifeTime = 3;
+double popupFadeTime = 1;
+double popupMoveSpeed = 0.1;
+
+std::string configPath = "";
+
 nlohmann::json getConfigJson() {
 	return{
 		{ "TitleScreenWorldRenderDistance", titleScreenWorldRenderDistance },
