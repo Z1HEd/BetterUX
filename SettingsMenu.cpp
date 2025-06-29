@@ -21,6 +21,7 @@ gui::Text graphicsText;
 gui::Text gameplayText;
 
 gui::Text betterUXText;
+gui::Slider titleScreenWorldRenderDistanceSlider;
 gui::CheckBox popupsEnabledCheckbox;
 gui::Slider popupLifeTimeSlider;
 gui::Slider popupFadeSlider;
@@ -118,7 +119,6 @@ static bool putIntoCategory(gui::Element* e) {
 		if (getTextElement(e) && getTextElement(e)->size>2) { // Title, create new category
 			otherContainers.emplace_back();
 			otherContainers[otherContainers.size() - 1].ySpacing = 20;
-			Console::printLine("New category: ", getText(e));
 		}
 		otherContainers[otherContainers.size() - 1].addElement(e);
 	}
@@ -193,6 +193,8 @@ $hook(void, StateSettings, render, StateManager& s)
 		};
 
 
+	titleScreenWorldRenderDistanceSlider.alignX(ALIGN_CENTER_X);
+	titleScreenWorldRenderDistanceSlider.alignY(ALIGN_TOP);
 	popupLifeTimeSlider.alignX(ALIGN_CENTER_X);
 	popupLifeTimeSlider.alignY(ALIGN_TOP);
 	popupFadeSlider.alignX(ALIGN_CENTER_X);
@@ -200,20 +202,27 @@ $hook(void, StateSettings, render, StateManager& s)
 	popupMoveSpeedSlider.alignX(ALIGN_CENTER_X);
 	popupMoveSpeedSlider.alignY(ALIGN_TOP);
 
-	popupLifeTimeSlider.width = popupFadeSlider.width = popupMoveSpeedSlider.width = 500;
+	titleScreenWorldRenderDistanceSlider.width = popupLifeTimeSlider.width = popupFadeSlider.width = popupMoveSpeedSlider.width = 500;
 
+	titleScreenWorldRenderDistanceSlider.range = 16;
 	popupLifeTimeSlider.range = 19;
 	popupFadeSlider.range = 9;
 	popupMoveSpeedSlider.range = 9;
 
+	titleScreenWorldRenderDistanceSlider.value = titleScreenWorldRenderDistance;
 	popupLifeTimeSlider.value = popupLifeTime*2-1;
 	popupFadeSlider.value = popupFadeTime * 5 - 1;
 	popupMoveSpeedSlider.value = popupMoveSpeed * 10 - 1;
 
+	titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
 	popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
 	popupFadeSlider.setText(std::format("Popup Fade Duration: {:.1f}", popupFadeTime));
 	popupMoveSpeedSlider.setText(std::format("Popup Speed: {:.1f}", popupMoveSpeed));
 
+	titleScreenWorldRenderDistanceSlider.callback = [](void* user, int value) {
+		titleScreenWorldRenderDistance = value;
+		titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
+		};
 	popupLifeTimeSlider.callback = [](void* user, int value) {
 		popupLifeTime = (double)value / 2 + 0.5;
 		popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
@@ -228,6 +237,7 @@ $hook(void, StateSettings, render, StateManager& s)
 		};
 
 
+	betterUXContainer.addElement(&titleScreenWorldRenderDistanceSlider);
 	betterUXContainer.addElement(&popupsEnabledCheckbox);
 	betterUXContainer.addElement(&popupLifeTimeSlider);
 	betterUXContainer.addElement(&popupFadeSlider);

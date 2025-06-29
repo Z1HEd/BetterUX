@@ -476,15 +476,15 @@ void hotbarCycleRight(GLFWwindow* window, int action, int mods) {
 
 }
 
-void dropItemInventory(GLFWwindow* window, int action, int mods) {
-	if (action != GLFW_PRESS) return;
+using LocalPlayerEventHandler = void (__thiscall *)(World*,Player*, Packet::ClientPacket, int64_t, void*);
+void dropItemInventory(LocalPlayerEventHandler original) {
 
 	Player& player = StateGame::instanceObj.player;
 	InventoryManager* manager = &player.inventoryManager;
 	InventoryGrid* hotbar = &player.hotbar;
 
 	double x, y;
-	glfwGetCursorPos(window, &x, &y);
+	glfwGetCursorPos(StateGame::instanceObj.ui.getGLFWwindow(), &x, &y);
 
 	Inventory* inventory = manager->primary;
 	int index = inventory->getSlotIndex({ x,y });
@@ -510,13 +510,26 @@ void dropItemInventory(GLFWwindow* window, int action, int mods) {
 		if (inventory!=hotbar || index !=hotbar->selectedIndex)
 			InventoryActions::swapIndex(manager, hotbar, inventory, hotbar->selectedIndex, index, inventory);
 
-		StateGame::instanceObj.world->localPlayerEvent(&player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
+		original(StateGame::instanceObj.world.get(), &player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 
 		if (inventory != hotbar || index != hotbar->selectedIndex)
 			InventoryActions::swapIndex(manager, hotbar, inventory, hotbar->selectedIndex, index, inventory);
 	}
 	
-	
+}
+
+$hook(void, WorldSingleplayer, localPlayerEvent, Player* player, Packet::ClientPacket eventType, int64_t eventValue, void* data) {
+	if (eventType == Packet::C_ITEM_THROW_HOTBAR && player->inventoryManager.isOpen()) {
+		return dropItemInventory(reinterpret_cast<LocalPlayerEventHandler>(original));
+	}
+	return original(self, player, eventType, eventValue, data);
+}
+
+$hook(void, WorldClient, localPlayerEvent, Player* player, Packet::ClientPacket eventType, int64_t eventValue, void* data) {
+	if (eventType == Packet::C_ITEM_THROW_HOTBAR && player->inventoryManager.isOpen()) {
+		return dropItemInventory(reinterpret_cast<LocalPlayerEventHandler>(original));
+	}
+	return original(self, player, eventType, eventValue, data);
 }
 
 void findAndSwap(Player* player,std::string name,Inventory* destinationInventory,int destinationIndex) {
@@ -563,8 +576,6 @@ void pickBlock(StateGame* s) {
 	findAndSwap(&s->player, targetBlockName, &s->player.hotbar, s->player.hotbar.selectedIndex);
 }
 
-
-
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
 	if (!KeyBinds::isLoaded())
@@ -578,10 +589,7 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 		if (key == GLFW_KEY_X)
 			hotbarCycleRight(window, action, mods);
 	}
-	if (key == GLFW_KEY_Q && self->inventoryManager.isOpen())
-		dropItemInventory(window, action, mods);
-	else
-		return original(self, window, world, key, scancode, action, mods);
+	return original(self, window, world, key, scancode, action, mods);
 }
 $exec
 {

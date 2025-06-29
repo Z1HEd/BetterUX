@@ -10,8 +10,9 @@ Keybinds and controls:
 - Hotbar switching - press 1-8 keys to switch item with hotbar slot.
 - Hotbar cycling - Press Z/X (Supports 4DKeybinds) to shift all your inventory columns left/right.
 - Picking blocks - look at a block and press MMB to take this block from your inventory.
-- Whed inventory is open, pressing drop key will drop item below cursor, not in the selected hotbar slot. Hold shift to drop all.
+- When inventory is open, pressing drop key will drop item below cursor, not in the selected hotbar slot. Hold shift to drop all.
 - Fastcrafting - ctrl to craft 10, shift+ctrl to craft 50, shift to craft all. Specific counts can be changed through config.json.
+- When pressing Q inventory, instead of dropping the item in hand- will drop an item your cursor is pointing at (Supports 4DKeybinds).
 Game UI:
 - Recipe search field.
 - Added collected items popups and 4 settings to customize them.
