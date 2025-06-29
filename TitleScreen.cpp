@@ -17,6 +17,11 @@ $hook(bool, WorldTitleScreen, loadCube, const glm::vec4& pos, uint8_t _distance)
     int cz = int(std::floor(pos.z * 0.125f));
     int R = titleScreenWorldRenderDistance;
 
+    if (R == 0) {
+        self->chunksReady = true;
+        return true;
+    }
+
     std::vector<glm::ivec3> coords;
     coords.reserve((2 * R + 1) * (2 * R + 1) * (2 * R + 1)); // overalocate a bit
 

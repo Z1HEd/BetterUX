@@ -185,11 +185,14 @@ $hook(void, StateSettings, render, StateManager& s)
 	popupsEnabledCheckbox.checked = popupsEnabled;
 	popupsEnabledCheckbox.alignX(ALIGN_CENTER_X);
 	popupsEnabledCheckbox.alignY(ALIGN_TOP);
-	popupsEnabledCheckbox.setText(popupsEnabled ? "Popups Enabled" : "Popups Disabled");
+	popupsEnabledCheckbox.setText("Item Popups:");
 
 	popupsEnabledCheckbox.callback = [](void* user, bool value) {
 		popupsEnabled = value;
-		popupsEnabledCheckbox.setText(popupsEnabled? "Popups Enabled" : "Popups Disabled");
+		popupLifeTimeSlider.clickable = popupsEnabled;
+		popupFadeSlider.clickable = popupsEnabled;
+		popupMoveSpeedSlider.clickable = popupsEnabled;
+		saveConfig();
 		};
 
 
@@ -215,27 +218,34 @@ $hook(void, StateSettings, render, StateManager& s)
 	popupMoveSpeedSlider.value = popupMoveSpeed * 10 - 1;
 
 	titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
-	popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
-	popupFadeSlider.setText(std::format("Popup Fade Duration: {:.1f}", popupFadeTime));
-	popupMoveSpeedSlider.setText(std::format("Popup Speed: {:.1f}", popupMoveSpeed));
+	popupLifeTimeSlider.setText(std::format("Lifetime: {:.1f}", popupLifeTime));
+	popupFadeSlider.setText(std::format("Fade Duration: {:.1f}", popupFadeTime));
+	popupMoveSpeedSlider.setText(std::format("Speed: {:.1f}", popupMoveSpeed));
 
 	titleScreenWorldRenderDistanceSlider.callback = [](void* user, int value) {
 		titleScreenWorldRenderDistance = value;
 		titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
+		saveConfig();
 		};
 	popupLifeTimeSlider.callback = [](void* user, int value) {
 		popupLifeTime = (double)value / 2 + 0.5;
-		popupLifeTimeSlider.setText(std::format("Popup Lifetime: {:.1f}", popupLifeTime));
+		popupLifeTimeSlider.setText(std::format("Lifetime: {:.1f}", popupLifeTime));
+		saveConfig();
 		};
 	popupFadeSlider.callback = [](void* user, int value) {
 		popupFadeTime = (double)value / 5 + 0.2;
-		popupFadeSlider.setText(std::format("Popup Fade Duration: {:.1f}", popupFadeTime));
+		popupFadeSlider.setText(std::format("Fade Duration: {:.1f}", popupFadeTime));
+		saveConfig();
 		};
 	popupMoveSpeedSlider.callback = [](void* user, int value) {
 		popupMoveSpeed = (double)value / 10 + 0.1;
-		popupMoveSpeedSlider.setText(std::format("Popup Speed: {:.1f}", popupMoveSpeed));
+		popupMoveSpeedSlider.setText(std::format("Speed: {:.1f}", popupMoveSpeed));
+		saveConfig();
 		};
 
+	popupLifeTimeSlider.clickable = popupsEnabled;
+	popupFadeSlider.clickable = popupsEnabled;
+	popupMoveSpeedSlider.clickable = popupsEnabled;
 
 	betterUXContainer.addElement(&titleScreenWorldRenderDistanceSlider);
 	betterUXContainer.addElement(&popupsEnabledCheckbox);

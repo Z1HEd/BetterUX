@@ -4,7 +4,20 @@
 
 using namespace fdm;
 
-void updateConfig(const std::string& path, const nlohmann::json& j)
+nlohmann::json getConfigJson() {
+	return{
+		{ "TitleScreenWorldRenderDistance", titleScreenWorldRenderDistance },
+		{ "ShiftCraftCount", shiftCraftCount },
+		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
+		{ "CtrlCraftCount", ctrlCraftCount },
+		{ "PopupsEnabled", popupsEnabled },
+		{ "PopupLifeTime", popupLifeTime },
+		{ "PopupFadeTime", popupFadeTime },
+		{ "PopupMoveSpeed", popupMoveSpeed },
+	};
+}
+
+void writeConfig(const std::string& path, const nlohmann::json& j)
 {
 	std::ofstream configFileO(path);
 	if (configFileO.is_open())
@@ -14,79 +27,65 @@ void updateConfig(const std::string& path, const nlohmann::json& j)
 	}
 }
 
+void saveConfig() {
+	nlohmann::json configJson = getConfigJson();
+	writeConfig(configPath, configJson);
+}
+
 // Read config
 $hook(void, StateIntro, init, StateManager& s)
 {
-	
-
 	configPath = std::format("{}/config.json", fdm::getModPath(fdm::modID));
-
-	nlohmann::json configJson
-	{
-		{ "TitleScreenWorldRenderDistance", titleScreenWorldRenderDistance},
-		{ "ShiftCraftCount", shiftCraftCount},
-		{ "CtrlShiftCraftCount", ctrlShiftCraftCount },
-		{ "CtrlCraftCount", ctrlCraftCount},
-		{ "PopupsEnabled", popupsEnabled},
-		{ "PopupLifeTime", popupLifeTime },
-		{ "PopupFadeTime", popupFadeTime},
-		{ "PopupMoveSpeed", popupMoveSpeed},
-	};
-
+	nlohmann::json configJson;
+	
 	if (!std::filesystem::exists(configPath))
-	{
-		updateConfig(configPath, configJson);
-	}
-	else
-	{
-		std::ifstream configFileI(configPath);
-		if (configFileI.is_open())
-		{
-			configJson = nlohmann::json::parse(configFileI);
-			configFileI.close();
-		}
-	}
+		saveConfig();
+
+	std::ifstream configFileI(configPath);
+
+	configJson = nlohmann::json::parse(configFileI);
+	configFileI.close();
 
 	if (!configJson.contains("TitleScreenWorldRenderDistance"))
 	{
 		configJson["TitleScreenWorldRenderDistance"] = titleScreenWorldRenderDistance;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("ShiftCraftCount"))
 	{
 		configJson["ShiftCraftCount"] = shiftCraftCount;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("CtrlShiftCraftCount"))
 	{
 		configJson["CtrlShiftCraftCount"] = ctrlShiftCraftCount;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("CtrlCraftCount"))
 	{
 		configJson["CtrlCraftCount"] = ctrlCraftCount;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 
 	if (!configJson.contains("PopupsEnabled"))
 	{
 		configJson["PopupsEnabled"] = popupsEnabled;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("PopupLifeTime"))
 	{
 		configJson["PopupLifeTime"] = popupLifeTime;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("PopupFadeTime"))
 	{
 		configJson["PopupFadeTime"] = popupFadeTime;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 	if (!configJson.contains("PopupMoveSpeed"))
 	{
 		configJson["PopupMoveSpeed"] = popupMoveSpeed;
-		updateConfig(configPath, configJson);
+		writeConfig(configPath, configJson);
 	}
 
 	titleScreenWorldRenderDistance = configJson["TitleScreenWorldRenderDistance"];

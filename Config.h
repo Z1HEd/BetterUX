@@ -14,4 +14,8 @@ inline double popupMoveSpeed = .2; // between 0.1 and 1
 
 inline std::string configPath;
 
-void updateConfig(const std::string& path, const nlohmann::json& j);
+nlohmann::json getConfigJson();
+
+void writeConfig(const std::string& path, const nlohmann::json& j);
+
+void saveConfig();

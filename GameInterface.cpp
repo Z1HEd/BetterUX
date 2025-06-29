@@ -71,7 +71,7 @@ public:
 			yOffset = tempPosition;
 		}
 		text = std::format("{} x{}", name, count);
-
+		shadow = !isDeadly;
 		if (isDeadly) {// Deadly item effect
 
 			glm::vec2 offset1 = glm::diskRand(5.0);
