@@ -209,18 +209,18 @@ $hook(void, StateSettings, render, StateManager& s)
 
 	titleScreenWorldRenderDistanceSlider.range = 16;
 	popupLifeTimeSlider.range = 19;
-	popupFadeSlider.range = 9;
-	popupMoveSpeedSlider.range = 9;
+	popupFadeSlider.range = 19;
+	popupMoveSpeedSlider.range = 19;
 
 	titleScreenWorldRenderDistanceSlider.value = titleScreenWorldRenderDistance;
 	popupLifeTimeSlider.value = popupLifeTime*2-1;
-	popupFadeSlider.value = popupFadeTime * 5 - 1;
-	popupMoveSpeedSlider.value = popupMoveSpeed * 10 - 1;
+	popupFadeSlider.value = popupFadeTime * 10 - 1;
+	popupMoveSpeedSlider.value = popupMoveSpeed * 200 - 1;
 
 	titleScreenWorldRenderDistanceSlider.setText(std::format("BG World Render Distance: {}", titleScreenWorldRenderDistance));
 	popupLifeTimeSlider.setText(std::format("Lifetime: {:.1f}", popupLifeTime));
 	popupFadeSlider.setText(std::format("Fade Duration: {:.1f}", popupFadeTime));
-	popupMoveSpeedSlider.setText(std::format("Speed: {:.1f}", popupMoveSpeed));
+	popupMoveSpeedSlider.setText(std::format("Speed: {:.3f}", popupMoveSpeed));
 
 	titleScreenWorldRenderDistanceSlider.callback = [](void* user, int value) {
 		titleScreenWorldRenderDistance = value;
@@ -233,13 +233,13 @@ $hook(void, StateSettings, render, StateManager& s)
 		saveConfig();
 		};
 	popupFadeSlider.callback = [](void* user, int value) {
-		popupFadeTime = (double)value / 5 + 0.2;
+		popupFadeTime = (double)value / 10 + 0.1;
 		popupFadeSlider.setText(std::format("Fade Duration: {:.1f}", popupFadeTime));
 		saveConfig();
 		};
 	popupMoveSpeedSlider.callback = [](void* user, int value) {
-		popupMoveSpeed = (double)value / 10 + 0.1;
-		popupMoveSpeedSlider.setText(std::format("Speed: {:.1f}", popupMoveSpeed));
+		popupMoveSpeed = (double)value / 200 + 0.005;
+		popupMoveSpeedSlider.setText(std::format("Speed: {:.3f}", popupMoveSpeed));
 		saveConfig();
 		};
 

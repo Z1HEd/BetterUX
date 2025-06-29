@@ -5,6 +5,7 @@
 #include "InventorySorter.h"
 #include "4DKeyBinds.h"
 #include "Config.h"
+#include "utils.h"
 
 QuadRenderer qr{};
 FontRenderer font{};
@@ -48,7 +49,9 @@ public:
 		
 		if (isGone) return;
 
+		static double lastFrameTime = glfwGetTime();
 		double time = glfwGetTime();
+		double dt = time = lastFrameTime;
 
 		if (!isFadingOut && time - updateTime > popupLifeTime) {
 			isFadingOut = true;
@@ -59,19 +62,10 @@ public:
 			isGone = true;
 			return;
 		}
-		double towardsTarget = targetYOffset- yOffset ;
 
-		if (std::abs(towardsTarget) > 0.01) {
+		yOffset = utils::ilerp(yOffset, targetYOffset, popupMoveSpeed,dt);
 
-			double step = std::copysign(
-				std::min(popupMoveSpeed, std::abs(towardsTarget)),
-				towardsTarget);
-
-			tempPosition += step;
-			yOffset = tempPosition;
-		}
 		text = std::format("{} x{}", name, count);
-		shadow = !isDeadly;
 		if (isDeadly) {// Deadly item effect
 
 			glm::vec2 offset1 = glm::diskRand(5.0);
@@ -93,9 +87,21 @@ public:
 			offsetY(savedY);
 		}
 		color.a = isFadingOut ? 1 - (time - fadeOutBeginTime) / popupFadeTime : 1;
+		auto* renderer = w->getFont();
+
+		int x, y;
+		getPos(w, &x, &y);
+
+		if (!isDeadly) { // shadow
+			renderer->setText(text);
+			renderer->pos = glm::ivec2{x+size,y+size};
+			renderer->color = { 0,0,0,color.a };
+			renderer->updateModel();
+			renderer->render();
+		}
+
 		color = { 1,1,1,color.a };
 		Text::render(w);
-		
 	}
 
 	void update() {
@@ -198,8 +204,10 @@ void itemCollected(Item* item) {
 		it->update();
 	}
 	else {
+		int startPos = 20;
+		if (popups.size() > 0) startPos = popups[0].yOffset +20;
 		popups.emplace(popups.begin(), item->getName(), item->count, item->isDeadly());
-		popups.begin()->tempPosition = 20;
+		popups.begin()->yOffset = startPos;
 	}
 	updatePopupPositions();
 }
@@ -578,6 +586,7 @@ void pickBlock(StateGame* s) {
 
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
+	
 	if (!KeyBinds::isLoaded())
 	{
 		if (key == GLFW_KEY_R)
@@ -588,8 +597,17 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 			hotbarCycleLeft(window, action, mods);
 		if (key == GLFW_KEY_X)
 			hotbarCycleRight(window, action, mods);
+		if (key == GLFW_KEY_Q && action == GLFW_PRESS && self->hotbar.getSlot(self->hotbar.selectedIndex)==nullptr && self->inventoryManager.isOpen()) // fix inventory dropping when hand is empty
+			StateGame::instanceObj.world->localPlayerEvent(self, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 	}
 	return original(self, window, world, key, scancode, action, mods);
+}
+
+void emptyHandDrop(GLFWwindow* window, int action, int mods) {
+	// fix inventory dropping when hand is empty
+	if (action == GLFW_PRESS && StateGame::instanceObj.player.hotbar.getSlot(StateGame::instanceObj.player.hotbar.selectedIndex) == nullptr && 
+		StateGame::instanceObj.player.inventoryManager.isOpen())
+		StateGame::instanceObj.world->localPlayerEvent(&StateGame::instanceObj.player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 }
 $exec
 {
@@ -597,6 +615,7 @@ $exec
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Z, KeyBindsScope::PLAYER, hotbarCycleLeft);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::X, KeyBindsScope::PLAYER, hotbarCycleRight);
+	KeyBinds::addBind("4DMiner", "Drop", glfw::Keys::G, KeyBindsScope::PLAYER, emptyHandDrop);
 }
 
 // Passing inputs into UI
