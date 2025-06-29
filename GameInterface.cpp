@@ -67,7 +67,6 @@ public:
 			return;
 		}
 
-		printf("speed:%f; dt:%f; yOff:%i; target:%i;\n", popupMoveSpeed, dt, yOffset, targetYOffset);
 		double tempPosition = utils::ilerp(yOffset, targetYOffset, popupMoveSpeed, dt);
 		yOffset = glm::ceil(tempPosition);
 
