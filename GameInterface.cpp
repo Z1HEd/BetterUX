@@ -19,6 +19,7 @@ class Popup : public gui::Text
 
 public:
 	int targetYOffset;
+	float yOffsetF;
 	double updateTime;
 
 	bool isFadingOut = false;
@@ -67,8 +68,8 @@ public:
 			return;
 		}
 
-		double tempPosition = utils::ilerp(yOffset, targetYOffset, popupMoveSpeed, dt);
-		yOffset = glm::ceil(tempPosition);
+		yOffsetF = utils::ilerp(yOffsetF, targetYOffset, popupMoveSpeed, dt);
+		yOffset = glm::round(yOffsetF);
 
 		std::string textF = std::format("{} x{}", name, count);
 		text = textF;
@@ -214,9 +215,9 @@ void itemCollected(Item* item) {
 	}
 	else {
 		int startPos = 20;
-		if (popups.size() > 0) startPos = popups[0].yOffset +20;
+		if (popups.size() > 0) startPos = popups[0].yOffsetF +20;
 		popups.emplace(popups.begin(), item->getName(), item->count, item->isDeadly());
-		popups.begin()->yOffset = startPos;
+		popups.begin()->yOffsetF = startPos;
 	}
 	updatePopupPositions();
 }
@@ -624,7 +625,7 @@ $exec
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Z, KeyBindsScope::PLAYER, hotbarCycleLeft);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::X, KeyBindsScope::PLAYER, hotbarCycleRight);
-	KeyBinds::addBind("4DMiner", "Drop", glfw::Keys::G, KeyBindsScope::PLAYER, emptyHandDrop);
+	KeyBinds::hookBind("4D Miner", "Drop", KeyBindsScope::PLAYER, emptyHandDrop);
 }
 
 // Passing inputs into UI
