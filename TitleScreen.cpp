@@ -131,7 +131,7 @@ $hook(void, WorldTitleScreen, loadChunks) {
 					size_t i = nextIdx.fetch_add(1, std::memory_order_relaxed);
 					if (i >= total) break;
 					Chunk* chunk = work[i];
-					if (chunk->loaded._Storage._Value) {
+					if (chunk->loaded) {
 						self->generateMesh(chunk, self->smoothLighting, self->shadows, self->lights);
 					}
 				}
