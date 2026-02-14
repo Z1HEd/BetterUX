@@ -607,7 +607,7 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 			hotbarCycleLeft(window, action, mods);
 		if (key == GLFW_KEY_PERIOD)
 			hotbarCycleRight(window, action, mods);
-		if (key == GLFW_KEY_Q && action == GLFW_PRESS && self->hotbar.getSlot(self->hotbar.selectedIndex) == nullptr && self->inventoryManager.isOpen() && (mods & GLFW_MOD_CONTROL) == 0) // fix inventory dropping when hand is empty
+		if (key == GLFW_KEY_Q && action == GLFW_PRESS && self->hotbar.getSlot(self->hotbar.selectedIndex) != nullptr && self->inventoryManager.isOpen() && (mods & GLFW_MOD_CONTROL) == 0) // fix inventory dropping when hand is empty
 			StateGame::instanceObj.world->localPlayerEvent(self, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 	}
 	return original(self, window, world, key, scancode, action, mods);
@@ -615,7 +615,7 @@ $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int sca
 
 void emptyHandDrop(GLFWwindow* window, int action, int mods) {
 	// fix inventory dropping when hand is empty
-	if (action == GLFW_PRESS && StateGame::instanceObj.player.hotbar.getSlot(StateGame::instanceObj.player.hotbar.selectedIndex) == nullptr && 
+	if (action == GLFW_PRESS && StateGame::instanceObj.player.hotbar.getSlot(StateGame::instanceObj.player.hotbar.selectedIndex) != nullptr && 
 		StateGame::instanceObj.player.inventoryManager.isOpen())
 		StateGame::instanceObj.world->localPlayerEvent(&StateGame::instanceObj.player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 }
