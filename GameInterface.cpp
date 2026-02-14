@@ -597,18 +597,17 @@ void pickBlock(StateGame* s) {
 
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
-	
 	if (!KeyBinds::isLoaded())
 	{
 		if (key == GLFW_KEY_R)
 			sortInventory(window, action, mods);
 		if (key == GLFW_KEY_F)
 			swapHands(window, action, mods);
-		if (key == GLFW_KEY_Z)
+		if (key == GLFW_KEY_COMMA)
 			hotbarCycleLeft(window, action, mods);
-		if (key == GLFW_KEY_X)
+		if (key == GLFW_KEY_PERIOD)
 			hotbarCycleRight(window, action, mods);
-		if (key == GLFW_KEY_Q && action == GLFW_PRESS && self->hotbar.getSlot(self->hotbar.selectedIndex)==nullptr && self->inventoryManager.isOpen()) // fix inventory dropping when hand is empty
+		if (key == GLFW_KEY_Q && action == GLFW_PRESS && self->hotbar.getSlot(self->hotbar.selectedIndex) == nullptr && self->inventoryManager.isOpen() && (mods & GLFW_MOD_CONTROL) == 0) // fix inventory dropping when hand is empty
 			StateGame::instanceObj.world->localPlayerEvent(self, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
 	}
 	return original(self, window, world, key, scancode, action, mods);
