@@ -415,6 +415,7 @@ $hookStatic(bool, InventoryManager, craftingMenuCallback, int recipeIndex, void*
 
 void sortInventory(GLFWwindow* window, int action, int mods) {
 	if (action != GLFW_PRESS) return;
+	if ((mods & GLFW_MOD_CONTROL) > 0) return;
 
 	InventoryManager* manager = &StateGame::instanceObj.player.inventoryManager;
 	if (!manager->isOpen()) return;
@@ -623,8 +624,8 @@ $exec
 {
 	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
-	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Z, KeyBindsScope::PLAYER, hotbarCycleLeft);
-	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::X, KeyBindsScope::PLAYER, hotbarCycleRight);
+	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Comma, KeyBindsScope::PLAYER, hotbarCycleLeft);
+	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::Period, KeyBindsScope::PLAYER, hotbarCycleRight);
 	KeyBinds::hookBind("4D Miner", "Drop", KeyBindsScope::PLAYER, emptyHandDrop);
 }
 
