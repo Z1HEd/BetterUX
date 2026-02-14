@@ -673,7 +673,8 @@ $hook(void, StateGame, mouseButtonInput, StateManager& s, int button, int action
 	// Block picking
 	if (!self->player.inventoryManager.isOpen() &&
 		button == GLFW_MOUSE_BUTTON_MIDDLE &&
-		action == GLFW_PRESS)
+		action == GLFW_PRESS &&
+		(mods & GLFW_MOD_CONTROL) > 0)
 		return pickBlock(self);
 
 	// UI input
