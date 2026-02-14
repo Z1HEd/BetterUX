@@ -537,7 +537,13 @@ void dropItemInventory(LocalPlayerEventHandler original) {
 	
 }
 
+bool skipOneItemThrow = false;
 $hook(void, WorldSingleplayer, localPlayerEvent, Player* player, Packet::ClientPacket eventType, int64_t eventValue, void* data) {
+	if (skipOneItemThrow)
+	{
+		skipOneItemThrow = false;
+		return;
+	}
 	if (eventType == Packet::C_ITEM_THROW_HOTBAR && player->inventoryManager.isOpen()) {
 		return dropItemInventory(reinterpret_cast<LocalPlayerEventHandler>(original));
 	}
@@ -545,6 +551,11 @@ $hook(void, WorldSingleplayer, localPlayerEvent, Player* player, Packet::ClientP
 }
 
 $hook(void, WorldClient, localPlayerEvent, Player* player, Packet::ClientPacket eventType, int64_t eventValue, void* data) {
+	if (skipOneItemThrow)
+	{
+		skipOneItemThrow = false;
+		return;
+	}
 	if (eventType == Packet::C_ITEM_THROW_HOTBAR && player->inventoryManager.isOpen()) {
 		return dropItemInventory(reinterpret_cast<LocalPlayerEventHandler>(original));
 	}
@@ -595,53 +606,65 @@ void pickBlock(StateGame* s) {
 	findAndSwap(&s->player, targetBlockName, &s->player.hotbar, s->player.hotbar.selectedIndex);
 }
 
+void drop(GLFWwindow* window, int action, int mods)
+{
+	Player& player = StateGame::instanceObj.player;
+	if (action != GLFW_RELEASE)
+	{
+		if (!player.inventoryManager.isOpen() && !player.getSelectedHotbarSlot())
+		{
+			return;
+		}
+
+		if (action == GLFW_PRESS && player.getSelectedHotbarSlot() && KeyBinds::isLoaded()) // skip the 4dkeybinds item throw, vanilla is already skipped in the keyInput handling
+		{
+			skipOneItemThrow = true;
+		}
+
+		StateGame::instanceObj.world->localPlayerEvent(&StateGame::instanceObj.player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
+	}
+}
+
 $hook(bool, Player, keyInput, GLFWwindow* window, World* world, int key, int scancode, int action, int mods)
 {
 	if (!KeyBinds::isLoaded())
 	{
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+		if (key == GLFW_KEY_R)
 		{
 			sortInventory(window, action, mods);
 			return false;
 		}
-		if (key == GLFW_KEY_F && action == GLFW_PRESS)
+		if (key == GLFW_KEY_F)
 		{
 			swapHands(window, action, mods);
 			return false;
 		}
-		if (key == GLFW_KEY_COMMA && action == GLFW_PRESS)
+		if (key == GLFW_KEY_COMMA)
 		{
 			hotbarCycleLeft(window, action, mods);
 			return false;
 		}
-		if (key == GLFW_KEY_PERIOD && action == GLFW_PRESS)
+		if (key == GLFW_KEY_PERIOD)
 		{
 			hotbarCycleRight(window, action, mods);
 			return false;
 		}
-		// fix inventory dropping when hand is empty
-		if (key == GLFW_KEY_Q && action != GLFW_RELEASE && self->hotbar.getSlot(self->hotbar.selectedIndex) == nullptr && self->inventoryManager.isOpen())
+		if (key == GLFW_KEY_Q && (mods & GLFW_MOD_SHIFT) == 0)
 		{
-			StateGame::instanceObj.world->localPlayerEvent(self, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
+			drop(window, action, mods);
 			return false;
 		}
 	}
 	return original(self, window, world, key, scancode, action, mods);
 }
 
-void emptyHandDrop(GLFWwindow* window, int action, int mods) {
-	// fix inventory dropping when hand is empty
-	if (action != GLFW_RELEASE && StateGame::instanceObj.player.hotbar.getSlot(StateGame::instanceObj.player.hotbar.selectedIndex) == nullptr && 
-		StateGame::instanceObj.player.inventoryManager.isOpen())
-		StateGame::instanceObj.world->localPlayerEvent(&StateGame::instanceObj.player, Packet::C_ITEM_THROW_HOTBAR, 0, nullptr);
-}
 $exec
 {
 	KeyBinds::addBind("BetterUX", "Sort Inventory", glfw::Keys::R, KeyBindsScope::PLAYER, sortInventory);
 	KeyBinds::addBind("BetterUX", "Swap Hands", glfw::Keys::F, KeyBindsScope::PLAYER, swapHands);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle left", glfw::Keys::Comma, KeyBindsScope::PLAYER, hotbarCycleLeft);
 	KeyBinds::addBind("BetterUX", "Hotbar cycle right", glfw::Keys::Period, KeyBindsScope::PLAYER, hotbarCycleRight);
-	KeyBinds::hookBind("4D Miner", "Drop", KeyBindsScope::PLAYER, emptyHandDrop);
+	KeyBinds::hookBind("4D Miner", "Drop", KeyBindsScope::PLAYER, drop);
 }
 
 // Passing inputs into UI
